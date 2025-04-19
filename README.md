@@ -1,6 +1,6 @@
 # SvelteVerse
 
-A simple and growing collection of plug-and-play SvelteKit components and integrations — including UI elements, real-time features, OCR, and more.
+A simple and growing collection of plug-and-play SvelteKit components and integrations.
 
 ---
 
