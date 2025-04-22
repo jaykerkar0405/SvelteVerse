@@ -1,5 +1,7 @@
 <script lang="ts">
 	import {
+		Sun,
+		Moon,
 		Code,
 		Heart,
 		Users,
@@ -12,7 +14,9 @@
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
+	import { toggleMode } from 'mode-watcher';
 	import componentCategories from '$lib/data/home';
+	import { Button } from '$lib/components/ui/button';
 
 	let lastScrollY = 0;
 	let activeCategory = 0;
@@ -100,13 +104,15 @@
 				>
 					<Github class="h-5 w-5" />
 				</a>
-				<a
-					href="/"
-					class="hidden items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground md:flex"
-				>
-					Get Started
-					<ChevronDown class="h-4 w-4" />
-				</a>
+				<Button onclick={toggleMode} variant="outline" size="icon">
+					<Sun
+						class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"
+					/>
+					<Moon
+						class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
+					/>
+					<span class="sr-only">Toggle theme</span>
+				</Button>
 			</div>
 		</div>
 	</header>
