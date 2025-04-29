@@ -10,7 +10,8 @@
 		ArrowUp,
 		FileCode,
 		ChevronDown,
-		ExternalLink
+		ExternalLink,
+		LogIn
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
@@ -95,15 +96,8 @@
 			</nav>
 
 			<div class="flex items-center gap-4">
-				<a
-					href="https://github.com/Crew-object-Object/SvelteVerse"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="rounded-full p-2 transition-colors hover:bg-muted"
-					aria-label="GitHub Repository"
-				>
-					<Github class="h-5 w-5" />
-				</a>
+				<Button href="/auth"><LogIn /> Login</Button>
+
 				<Button onclick={toggleMode} variant="outline" size="icon">
 					<Sun
 						class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"
