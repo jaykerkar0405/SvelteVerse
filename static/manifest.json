@@ -1,0 +1,45 @@
+{
+	"scope": "/",
+	"lang": "en-IN",
+	"start_url": "/",
+	"name": "SvelteVerse",
+	"display": "standalone",
+	"theme_color": "#22c55e",
+	"orientation": "portrait",
+	"short_name": "SvelteVerse",
+	"background_color": "#000000",
+	"description": "A universe of SvelteKit components and integrations.",
+	"icons": [
+		{
+			"sizes": "48x48",
+			"src": "/favicon.ico",
+			"type": "image/x-icon"
+		},
+		{
+			"sizes": "64x64",
+			"type": "image/png",
+			"src": "/pwa-64x64.png"
+		},
+		{
+			"sizes": "192x192",
+			"type": "image/png",
+			"src": "/pwa-192x192.png"
+		},
+		{
+			"sizes": "512x512",
+			"type": "image/png",
+			"src": "/pwa-512x512.png"
+		},
+		{
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable",
+			"src": "/maskable-icon-512x512.png"
+		},
+		{
+			"sizes": "180x180",
+			"type": "image/png",
+			"src": "/apple-touch-icon-180x180.png"
+		}
+	]
+}
