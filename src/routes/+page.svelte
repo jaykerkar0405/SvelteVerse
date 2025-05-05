@@ -96,7 +96,7 @@
 			</nav>
 
 			<div class="flex items-center gap-4">
-				<Button href="/auth"><LogIn /> Login</Button>
+				<Button href="/auth"><LogIn /> Get Started</Button>
 
 				<Button onclick={toggleMode} variant="outline" size="icon">
 					<Sun
