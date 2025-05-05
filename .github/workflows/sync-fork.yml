@@ -1,0 +1,31 @@
+name: Sync Fork with Main Repository
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  sync-fork:
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push') || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add fork remote
+        run: |
+          git remote add fork https://${{ secrets.SVELTEVERSE_FORK_TOKEN }}@github.com/jaykerkar0405/SvelteVerse.git
+          git fetch fork
+
+      - name: Push to fork
+        run: |
+          git push fork main:main --force
