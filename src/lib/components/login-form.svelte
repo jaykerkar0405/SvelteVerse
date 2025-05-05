@@ -12,18 +12,16 @@
 	async function authenticate(provider: Provider) {
 		if (loading) return;
 
-		const toastId = toast.loading('Authenticating...', {
-			duration: Infinity,
-			description: `Connecting to ${provider.charAt(0).toUpperCase() + provider.slice(1)}`
-		});
-
+		const toastId = toast.loading(
+			`Connecting to ${provider.charAt(0).toUpperCase() + provider.slice(1)}...`
+		);
 		loading = true;
 
 		try {
 			await authClient.signIn.social({ provider, callbackURL: '/dashboard' });
-			toast.success('Welcome!', {
-				id: toastId,
-				description: 'Successfully authenticated. Redirecting...'
+			toast.dismiss(toastId);
+			toast.success(`Connected with ${provider.charAt(0).toUpperCase() + provider.slice(1)}`, {
+				description: 'Redirecting...'
 			});
 		} catch (error: any) {
 			toast.error('Authentication Failed', {
