@@ -100,11 +100,11 @@
 			<div class="flex items-center gap-4">
 				<Button href={user ? '/dashboard' : '/auth'}>
 					{#if user}
-						<LayoutDashboard class="mr-2 h-4 w-4" />
-						Dashboard
+						<LayoutDashboard class="h-4 w-4" />
+						<span class="ml-2 hidden md:inline">Dashboard</span>
 					{:else}
-						<LogIn class="mr-2 h-4 w-4" />
-						Login
+						<LogIn class="h-4 w-4" />
+						<span class="ml-2 hidden md:inline">Login</span>
 					{/if}
 				</Button>
 
