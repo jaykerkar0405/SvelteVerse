@@ -100,11 +100,11 @@
 			<div class="flex items-center gap-4">
 				<Button href={user ? '/dashboard' : '/auth'}>
 					{#if user}
-						<LayoutDashboard class="mr-2 h-4 w-4" />
-						Dashboard
+						<LayoutDashboard class="h-4 w-4" />
+						<span class="ml-2 hidden md:inline">Dashboard</span>
 					{:else}
-						<LogIn class="mr-2 h-4 w-4" />
-						Login
+						<LogIn class="h-4 w-4" />
+						<span class="ml-2 hidden md:inline">Login</span>
 					{/if}
 				</Button>
 
@@ -171,6 +171,7 @@
 					<div class="border-b border-border">
 						<div class="scrollbar-hide flex gap-1 overflow-x-auto pb-px">
 							{#each componentCategories as category, i}
+								{@const Component = category.icon}
 								<button
 									class="inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 									class:border-primary={activeCategory === i}
@@ -180,7 +181,7 @@
 									class:hover:text-foreground={activeCategory !== i}
 									onclick={() => setActiveCategory(i)}
 								>
-									<svelte:component this={category.icon} class="h-4 w-4" />
+									<Component class="h-4 w-4" />
 									{category.name}
 								</button>
 							{/each}
