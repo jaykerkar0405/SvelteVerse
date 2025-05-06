@@ -5,13 +5,13 @@
 		Code,
 		Heart,
 		Users,
+		LogIn,
 		Github,
 		Package,
 		ArrowUp,
 		FileCode,
-		ChevronDown,
 		ExternalLink,
-		LogIn
+		LayoutDashboard
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
@@ -20,9 +20,11 @@
 	import { Button } from '$lib/components/ui/button';
 
 	let lastScrollY = 0;
-	let activeCategory = 0;
-	let isHeaderVisible = true;
-	let showScrollButton = false;
+	let { data } = $props();
+	let activeCategory = $state(0);
+	let user = $derived(data?.user);
+	let isHeaderVisible = $state(true);
+	let showScrollButton = $state(false);
 
 	// Handle scroll event to show/hide header
 	function handleScroll() {
@@ -96,7 +98,15 @@
 			</nav>
 
 			<div class="flex items-center gap-4">
-				<Button href="/auth"><LogIn /> Get Started</Button>
+				<Button href={user ? '/dashboard' : '/auth'}>
+					{#if user}
+						<LayoutDashboard class="mr-2 h-4 w-4" />
+						Dashboard
+					{:else}
+						<LogIn class="mr-2 h-4 w-4" />
+						Login
+					{/if}
+				</Button>
 
 				<Button onclick={toggleMode} variant="outline" size="icon">
 					<Sun
