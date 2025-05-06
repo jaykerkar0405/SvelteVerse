@@ -1,8 +1,9 @@
 import { auth } from '$lib/auth';
 import type { Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
+import { svelteKitHandler } from 'better-auth/svelte-kit';
 
-const authorization: Handle = async ({ event, resolve }) => {
+const sessionHandler: Handle = async ({ event, resolve }) => {
 	const session = await auth.api.getSession({
 		headers: event.request.headers
 	});
@@ -10,4 +11,8 @@ const authorization: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
-export const handle = sequence(authorization);
+const betterAuthHandler: Handle = ({ event, resolve }) => {
+	return svelteKitHandler({ event, resolve, auth });
+};
+
+export const handle = sequence(sessionHandler, betterAuthHandler);
