@@ -169,7 +169,7 @@
 				<!-- Component Categories Tabs -->
 				<div class="mb-8">
 					<div class="border-b border-border">
-						<div class="flex gap-1 overflow-x-hidden pb-px">
+						<div class="scrollbar-none flex gap-1 overflow-x-auto pb-px">
 							{#each componentCategories as category, i}
 								{@const Component = category.icon}
 								<button
