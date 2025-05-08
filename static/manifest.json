@@ -7,7 +7,7 @@
 	"theme_color": "#22c55e",
 	"orientation": "portrait",
 	"short_name": "SvelteVerse",
-	"background_color": "#000000",
+	"background_color": "#0a0808",
 	"description": "A universe of SvelteKit components and integrations.",
 	"icons": [
 		{
