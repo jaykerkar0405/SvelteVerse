@@ -11,30 +11,27 @@
 
 	async function authenticate(provider: Provider) {
 		if (loading) return;
-
-		const toastId = toast.loading(
-			`Connecting to ${provider.charAt(0).toUpperCase() + provider.slice(1)}...`
-		);
 		loading = true;
 
-		try {
-			await authClient.signIn.social({ provider, callbackURL: '/dashboard' });
-			toast.dismiss(toastId);
-			toast.success(`Connected with ${provider.charAt(0).toUpperCase() + provider.slice(1)}`, {
-				description: 'Redirecting...'
-			});
-		} catch (error: any) {
-			toast.error('Authentication Failed', {
-				description: error?.message || `Unable to connect with ${provider}. Please try again.`,
-				id: toastId,
-				action: {
-					label: 'Try Again',
-					onClick: () => authenticate(provider)
-				}
-			});
-		} finally {
-			loading = false;
-		}
+		const authPromise = new Promise<{ provider: string }>(async (resolve, reject) => {
+			try {
+				await authClient.signIn.social({ provider, callbackURL: '/dashboard' });
+				resolve({ provider: provider.charAt(0).toUpperCase() + provider.slice(1) });
+			} catch (error: any) {
+				reject(error);
+			} finally {
+				loading = false;
+			}
+		});
+
+		toast.promise(authPromise, {
+			loading: `Connecting to ${provider.charAt(0).toUpperCase() + provider.slice(1)}...`,
+			success: (data) => `Connected with ${data.provider}. Redirecting...`,
+			error: (error: unknown) =>
+				error instanceof Error
+					? error.message
+					: `Unable to connect with ${provider}. Please try again.`
+		});
 	}
 </script>
 
