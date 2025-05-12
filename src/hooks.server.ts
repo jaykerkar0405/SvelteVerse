@@ -9,7 +9,6 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
 		headers: event.request.headers
 	});
 	event.locals.user = session?.user ?? null;
-	setAuth(session?.user ?? null);
 	return resolve(event);
 };
 
