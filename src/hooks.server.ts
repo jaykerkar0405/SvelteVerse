@@ -1,4 +1,5 @@
 import { auth } from '$lib/auth';
+import { setAuth } from '$lib/hooks/use-auth';
 import type { Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
