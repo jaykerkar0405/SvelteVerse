@@ -32,6 +32,7 @@
 		"@testing-library/svelte": "^5.2.4",
 		"@types/node": "^22.15.16",
 		"autoprefixer": "^10.4.20",
+		"bits-ui": "^1.4.8",
 		"clsx": "^2.1.1",
 		"cmdk-sv": "^0.0.19",
 		"embla-carousel-svelte": "^8.6.0",
@@ -66,7 +67,6 @@
 	},
 	"dependencies": {
 		"@prisma/client": "^6.7.0",
-		"better-auth": "^1.2.7",
-		"bits-ui": "^1.4.8"
+		"better-auth": "^1.2.7"
 	}
 }
