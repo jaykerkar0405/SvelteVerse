@@ -18,11 +18,12 @@
 	import { toggleMode } from 'mode-watcher';
 	import componentCategories from '$lib/data/home';
 	import { Button } from '$lib/components/ui/button';
+	import { useAuth } from '$lib/hooks/use-auth';
 
 	let lastScrollY = 0;
-	let { data } = $props();
+	const auth = useAuth();
 	let activeCategory = $state(0);
-	let user = $derived(data?.user);
+	const { user } = $derived($auth);
 	let isHeaderVisible = $state(true);
 	let showScrollButton = $state(false);
 
