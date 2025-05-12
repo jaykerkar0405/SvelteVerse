@@ -1,31 +1,32 @@
 <script lang="ts">
-	import { ScrollArea as ScrollAreaPrimitive } from "bits-ui";
-	import { Scrollbar } from "./index.js";
-	import { cn } from "$lib/utils.js";
+	import { cn } from '$lib/utils.js';
+	import { Scrollbar } from './index.js';
+	import { ScrollArea as ScrollAreaPrimitive, type WithoutChild } from 'bits-ui';
 
-	type $$Props = ScrollAreaPrimitive.Props & {
-		orientation?: "vertical" | "horizontal" | "both";
-		scrollbarXClasses?: string;
-		scrollbarYClasses?: string;
-	};
-
-	let className: $$Props["class"] = undefined;
-	export { className as class };
-	export let orientation = "vertical";
-	export let scrollbarXClasses: string = "";
-	export let scrollbarYClasses: string = "";
+	let {
+		children,
+		class: className,
+		ref = $bindable(null),
+		scrollbarXClasses = '',
+		scrollbarYClasses = '',
+		orientation = 'vertical',
+		...restProps
+	}: WithoutChild<ScrollAreaPrimitive.RootProps> & {
+		scrollbarXClasses?: string | undefined;
+		scrollbarYClasses?: string | undefined;
+		orientation?: 'vertical' | 'horizontal' | 'both' | undefined;
+	} = $props();
 </script>
 
-<ScrollAreaPrimitive.Root {...$$restProps} class={cn("relative overflow-hidden", className)}>
-	<ScrollAreaPrimitive.Viewport class="h-full w-full rounded-[inherit]">
-		<ScrollAreaPrimitive.Content>
-			<slot />
-		</ScrollAreaPrimitive.Content>
+<ScrollAreaPrimitive.Root bind:ref {...restProps} class={cn('relative overflow-hidden', className)}>
+	<ScrollAreaPrimitive.Viewport class="h-full w-full rounded-[inherit] [&>*]:flex [&>*]:flex-col">
+		{@render children?.()}
 	</ScrollAreaPrimitive.Viewport>
-	{#if orientation === "vertical" || orientation === "both"}
+
+	{#if orientation === 'vertical' || orientation === 'both'}
 		<Scrollbar orientation="vertical" class={scrollbarYClasses} />
 	{/if}
-	{#if orientation === "horizontal" || orientation === "both"}
+	{#if orientation === 'horizontal' || orientation === 'both'}
 		<Scrollbar orientation="horizontal" class={scrollbarXClasses} />
 	{/if}
 	<ScrollAreaPrimitive.Corner />

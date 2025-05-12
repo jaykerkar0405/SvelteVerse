@@ -1,9 +1,9 @@
 <script lang="ts">
+	import * as Sidebar from '$lib/components/ui/sidebar';
 	import { Separator } from '$lib/components/ui/separator';
 	import AppSidebar from '$lib/components/app-sidebar.svelte';
-	import * as Sidebar from '$lib/components/ui/sidebar';
-	import LinkBreadcrumbs from './(components)/link-breadcrumbs.svelte';
-	import CustomScrollArea from '$lib/components/ui/scroll-area/custom-scroll-area.svelte';
+	import Breadcrumbs from '$lib/components/breadcrumbs.svelte';
+	import ScrollArea from '$lib/components/ui/scroll-area/scroll-area.svelte';
 
 	let { children } = $props();
 </script>
@@ -11,18 +11,18 @@
 <Sidebar.Provider>
 	<AppSidebar />
 
-	<div class="mx-auto flex h-screen w-full max-w-xl md:max-w-4xl flex-col">
+	<div class="mx-auto flex h-screen w-full flex-col">
 		<header
 			class="sticky top-0 z-50 flex min-h-12 items-center gap-2 bg-background/80 px-4 py-2 backdrop-blur-sm"
 		>
 			<Sidebar.Trigger />
 			<Separator orientation="vertical" class="mr-2 h-6" />
-			<LinkBreadcrumbs />
+			<Breadcrumbs />
 		</header>
-		<CustomScrollArea class="h-px w-full grow">
+		<ScrollArea class="h-px w-full grow">
 			<main class="flex w-full grow flex-col gap-2 p-4 pt-2 md:gap-4">
 				{@render children?.()}
 			</main>
-		</CustomScrollArea>
+		</ScrollArea>
 	</div>
 </Sidebar.Provider>
