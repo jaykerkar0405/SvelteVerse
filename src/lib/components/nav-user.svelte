@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { signOut } from '$lib/hooks/auth';
 	import { useAuth } from '$lib/hooks/use-auth';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Sidebar from '$lib/components/ui/sidebar';
@@ -81,7 +82,7 @@
 
 					<DropdownMenu.Separator />
 
-					<DropdownMenu.Item>
+					<DropdownMenu.Item class="cursor-pointer" onclick={signOut}>
 						<LogOut class="mr-2 h-4 w-4" />
 						Log out
 					</DropdownMenu.Item>
