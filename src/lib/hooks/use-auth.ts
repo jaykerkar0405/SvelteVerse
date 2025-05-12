@@ -1,6 +1,4 @@
-import { readable } from 'svelte/store';
-import type { Readable } from 'svelte/store';
-import { getContext, setContext } from 'svelte';
+import { writable } from 'svelte/store';
 
 export type User = {
 	id: string;
@@ -12,36 +10,26 @@ export type User = {
 	emailVerified: boolean;
 };
 
-export type AuthStore = Readable<{
+export type AuthState = {
 	user: User | null;
 	isLoading: boolean;
 	isAuthenticated: boolean;
-}>;
+};
 
-const AUTH_CONTEXT_KEY = Symbol('auth');
+const authStore = writable<AuthState>({
+	user: null,
+	isLoading: false,
+	isAuthenticated: false
+});
 
-export function createAuthStore(initialUser: User | null): AuthStore {
-	return readable({
+export function setAuth(user: User | null) {
+	authStore.set({
+		user,
 		isLoading: false,
-		user: initialUser,
-		isAuthenticated: !!initialUser
+		isAuthenticated: !!user
 	});
 }
 
-export function setAuth(user: User | null): AuthStore {
-	const store = createAuthStore(user);
-	setContext(AUTH_CONTEXT_KEY, store);
-	return store;
-}
-
-export function useAuth(): AuthStore {
-	const store = getContext<AuthStore | undefined>(AUTH_CONTEXT_KEY);
-
-	if (!store) {
-		throw new Error(
-			'Auth context not found. Make sure to call setAuth() in your root +layout.svelte'
-		);
-	}
-
-	return store;
+export function useAuth() {
+	return authStore;
 }
