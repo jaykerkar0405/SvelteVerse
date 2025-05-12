@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { signOut } from '$lib/hooks/auth';
 	import { useAuth } from '$lib/hooks/use-auth';
+	import { toTitleCase } from '$lib/utils/text';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import { ChevronsUpDown, LogOut } from 'lucide-svelte';
@@ -10,6 +11,7 @@
 	const auth = useAuth();
 	const sidebar = useSidebar();
 	const { user, isLoading } = $derived($auth);
+	const displayName = $derived(user?.name ? toTitleCase(user.name) : 'User');
 </script>
 
 {#if isLoading}
@@ -46,7 +48,7 @@
 							</Avatar.Root>
 
 							<div class="grid flex-1 text-left text-sm leading-tight">
-								<span class="truncate font-semibold">{user.name ?? 'User'}</span>
+								<span class="truncate font-semibold">{displayName}</span>
 								<span class="truncate text-xs">{user.email}</span>
 							</div>
 
@@ -74,7 +76,7 @@
 							</Avatar.Root>
 
 							<div class="grid flex-1 text-left text-sm leading-tight">
-								<span class="truncate font-semibold">{user.name ?? 'User'}</span>
+								<span class="truncate font-semibold">{displayName}</span>
 								<span class="truncate text-xs">{user.email}</span>
 							</div>
 						</div>
