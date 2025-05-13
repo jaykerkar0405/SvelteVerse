@@ -6,7 +6,8 @@
 	import { Github, Loader2 } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 
-	let loading = false;
+	let loading = $state(false);
+	let { redirectTo } = $props();
 	type Provider = 'google' | 'github';
 
 	async function authenticate(provider: Provider) {
@@ -15,7 +16,7 @@
 
 		const authPromise = new Promise<{ provider: string }>(async (resolve, reject) => {
 			try {
-				await authClient.signIn.social({ provider, callbackURL: '/dashboard' });
+				await authClient.signIn.social({ provider, callbackURL: redirectTo });
 				resolve({ provider: provider.charAt(0).toUpperCase() + provider.slice(1) });
 			} catch (error: any) {
 				reject(error);
@@ -46,7 +47,7 @@
 			<Card.Content class="pb-8 pt-6">
 				<div class="space-y-6">
 					<Button
-						{loading}
+						disabled={loading}
 						variant="outline"
 						onclick={() => authenticate('google')}
 						class="relative h-12 w-full {loading ? 'opacity-80' : ''}"
@@ -83,8 +84,8 @@
 					</Button>
 
 					<Button
-						{loading}
 						variant="outline"
+						disabled={loading}
 						onclick={() => authenticate('github')}
 						class="relative h-12 w-full {loading ? 'opacity-80' : ''}"
 					>
