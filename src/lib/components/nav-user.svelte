@@ -4,14 +4,28 @@
 	import { toTitleCase } from '$lib/utils/text';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Sidebar from '$lib/components/ui/sidebar';
-	import { ChevronsUpDown, LogOut } from 'lucide-svelte';
+	import { ChevronsUpDown, LogOut, Loader2 } from 'lucide-svelte';
 	import { useSidebar } from '$lib/components/ui/sidebar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
 	const auth = useAuth();
 	const sidebar = useSidebar();
+	let isSigningOut = $state(false);
 	const { user, isLoading } = $derived($auth);
 	const displayName = $derived(user?.name ? toTitleCase(user.name) : 'User');
+
+	async function handleSignOut() {
+		if (isSigningOut) return;
+		isSigningOut = true;
+
+		try {
+			await signOut();
+		} catch (error) {
+			console.error('Error signing out:', error);
+		} finally {
+			isSigningOut = false;
+		}
+	}
 </script>
 
 {#if isLoading}
@@ -84,9 +98,14 @@
 
 					<DropdownMenu.Separator />
 
-					<DropdownMenu.Item class="cursor-pointer" onclick={signOut}>
-						<LogOut class="mr-2 h-4 w-4" />
-						Log out
+					<DropdownMenu.Item class="cursor-pointer" onclick={handleSignOut} disabled={isSigningOut}>
+						{#if isSigningOut}
+							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+							<span>Signing out...</span>
+						{:else}
+							<LogOut class="mr-2 h-4 w-4" />
+							<span>Log out</span>
+						{/if}
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
