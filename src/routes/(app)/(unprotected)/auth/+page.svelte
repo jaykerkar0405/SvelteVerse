@@ -11,7 +11,8 @@
 		}
 	});
 
-	const redirectTo = `/${$page.url.searchParams.get('redirectTo')}` || '/dashboard';
+	const redirectParam = $page.url.searchParams.get('redirectTo');
+	const redirectTo = redirectParam ? `/${redirectParam}` : '/dashboard';
 </script>
 
 <div class="flex h-screen w-full items-center justify-center px-4">
