@@ -1,0 +1,18 @@
+# https://svelteverse.vercel.app/robots.txt
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://svelteverse.vercel.app/sitemap.xml
+
+# Disallow certain paths
+Disallow: /api/
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /*.json$
+Disallow: /*?*
+
+# Crawl-delay
+Crawl-delay: 10

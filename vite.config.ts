@@ -4,6 +4,19 @@ import { svelteTesting } from '@testing-library/svelte/vite';
 
 export default defineConfig({
 	plugins: [sveltekit()],
+	build: {
+		assetsInlineLimit: 0,
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					vendor: ['svelte', '@sveltejs/kit', 'lucide-svelte']
+				}
+			}
+		}
+	},
+	optimizeDeps: {
+		include: ['svelte', '@sveltejs/kit']
+	},
 	test: {
 		workspace: [
 			{
