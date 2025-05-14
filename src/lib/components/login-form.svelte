@@ -112,8 +112,11 @@
 
 		<p class="mt-4 text-center text-xs text-muted-foreground">
 			By continuing, you agree to our
-			<a href="/terms" class="text-primary hover:underline">Terms</a> and
-			<a href="/privacy" class="text-primary hover:underline">Privacy Policy</a>
+			<a href="/terms" class="text-primary hover:underline" aria-label="Terms of Service">Terms</a>
+			and
+			<a href="/privacy" class="text-primary hover:underline" aria-label="Privacy Policy"
+				>Privacy Policy</a
+			>
 		</p>
 	</div>
 </div>

@@ -206,6 +206,7 @@
 										<h3 class="text-xl font-medium">{component.name}</h3>
 										<a
 											href={component.link}
+											aria-label={`View ${component.name} component`}
 											class="rounded-full p-2 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
 										>
 											<ExternalLink class="h-4 w-4" />
@@ -316,6 +317,7 @@
 									href="https://github.com/jaykerkar0405"
 									target="_blank"
 									rel="noopener noreferrer"
+									aria-label="Visit Jay Kerkar's GitHub profile"
 									class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
 								>
 									<Github class="mr-2 h-4 w-4" /> GitHub
@@ -324,6 +326,7 @@
 									href="https://jaykerkar.vercel.app"
 									target="_blank"
 									rel="noopener noreferrer"
+									aria-label="Visit Jay Kerkar's Portfolio"
 									class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
 								>
 									<ExternalLink class="mr-2 h-4 w-4" /> Portfolio
