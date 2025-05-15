@@ -19,7 +19,7 @@
 		</header>
 
 		<ScrollArea class="h-[calc(100vh-3rem)]">
-			<main class="flex w-full flex-col gap-4 p-4">
+			<main class="flex w-full flex-col gap-4">
 				{@render children?.()}
 			</main>
 		</ScrollArea>
