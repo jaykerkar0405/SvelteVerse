@@ -36,16 +36,16 @@
 	];
 </script>
 
-<div class="container mx-auto space-y-8 p-8" in:fade={{ duration: 300 }}>
+<div class="container mx-auto flex flex-col gap-4 p-8 md:gap-6" in:fade={{ duration: 300 }}>
 	<div class="space-y-2">
 		<h1 class="text-3xl font-bold tracking-tight">👋 Hey {firstName}!</h1>
 		<p class="text-muted-foreground">Welcome to SvelteVerse - Your hub for SvelteKit components.</p>
 	</div>
 
-	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+	<div class="grid gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
 		{#each stats as stat}
 			{@const Component = stat.icon}
-			<Card.Root>
+			<Card.Root class="h-full">
 				<Card.Header class="space-y-1">
 					<Card.Title class="flex items-center gap-2">
 						<Component class="h-4 w-4" />
@@ -60,7 +60,7 @@
 		{/each}
 	</div>
 
-	<div class="grid gap-4 md:grid-cols-2">
+	<div class="grid gap-3 md:grid-cols-2 md:gap-4">
 		<Card.Root class="overflow-hidden">
 			<Card.Header>
 				<Card.Title>Getting Started</Card.Title>
