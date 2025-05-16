@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
 	import { useAuth } from '$lib/hooks/use-auth';
+	import { toTitleCase } from '$lib/utils/text';
 	import * as Card from '$lib/components/ui/card';
 	import { Package, Code, Book, Grid2x2, Heart } from 'lucide-svelte';
 
 	const auth = useAuth();
 	const { user } = $derived($auth);
-	const firstName = $derived(user?.name?.split(' ')[0] ?? 'there');
+	const firstName = $derived(user ? toTitleCase(user.name!!.split(' ')[0]) : 'there');
 
 	const stats = [
 		{
