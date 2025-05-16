@@ -17,9 +17,6 @@ export default defineConfig({
 	optimizeDeps: {
 		include: ['svelte', '@sveltejs/kit']
 	},
-	worker: {
-		format: 'es'
-	},
 	test: {
 		workspace: [
 			{

@@ -1,72 +1,58 @@
-/// <reference lib="webworker" />
+// /// <reference lib="esnext" />
+// /// <reference lib="webworker" />
+// /// <reference no-default-lib="true"/>
+// /// <reference types="@sveltejs/kit" />
 
-const CACHE_VERSION = 'v1';
-declare const self: ServiceWorkerGlobalScope;
-const CACHE_NAME = `svelteverse-${CACHE_VERSION}`;
+// import { build, files, version } from '$service-worker';
 
-// Assets to cache on install
-const ASSETS_TO_CACHE = [
-	'/',
-	'/favicon.ico',
-	'/manifest.json',
-	'/fonts/Inter-VariableFont_opsz,wght.ttf'
-];
+// const CACHE = `cache-${version}`;
+// const ASSETS = [...build, ...files];
+// const sw = self as unknown as ServiceWorkerGlobalScope;
 
-// Install event - cache static assets
-self.addEventListener('install', (event) => {
-	event.waitUntil(
-		caches.open(CACHE_NAME).then((cache) => {
-			return cache.addAll(ASSETS_TO_CACHE);
-		})
-	);
-});
+// sw.addEventListener('install', (event) => {
+// 	event.waitUntil(
+// 		(async () => {
+// 			const cache = await caches.open(CACHE);
+// 			await cache.addAll(ASSETS);
+// 		})()
+// 	);
+// });
 
-// Activate event - clean up old caches
-self.addEventListener('activate', (event) => {
-	event.waitUntil(
-		caches.keys().then((keys) => {
-			return Promise.all(
-				keys.map((key) => {
-					if (key !== CACHE_NAME) {
-						return caches.delete(key);
-					}
-				})
-			);
-		})
-	);
+// sw.addEventListener('activate', (event) => {
+// 	event.waitUntil(
+// 		(async () => {
+// 			const keys = await caches.keys();
+// 			await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)));
+// 		})()
+// 	);
+// });
 
-	// Immediately take control of all clients
-	event.waitUntil(self.clients.claim());
-});
+// sw.addEventListener('fetch', (event) => {
+// 	if (event.request.method !== 'GET') return;
+// 	if (event.request.headers.has('range')) return;
 
-// Fetch event - cache-first strategy with network fallback
-self.addEventListener('fetch', (event) => {
-	if (event.request.method !== 'GET') return;
+// 	event.respondWith(
+// 		(async () => {
+// 			const cache = await caches.open(CACHE);
+// 			const cachedResponse = await cache.match(event.request);
 
-	event.respondWith(
-		caches.match(event.request).then((cached) => {
-			const networked = fetch(event.request)
-				.then((response) => {
-					const cacheCopy = response.clone();
-					caches.open(CACHE_NAME).then((cache) => {
-						cache.put(event.request, cacheCopy);
-					});
-					return response;
-				})
-				.catch(() => {
-					return new Response('Network error');
-				});
+// 			if (cachedResponse) {
+// 				return cachedResponse;
+// 			}
 
-			return Promise.resolve(cached || networked);
-		})
-	);
-});
+// 			const networkResponse = await fetch(event.request);
+// 			if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+// 				if (event.request.url.startsWith('http')) {
+// 					await cache.put(event.request, networkResponse.clone());
+// 				}
+// 			}
+// 			return networkResponse;
+// 		})()
+// 	);
+// });
 
-// Message event - handle skip waiting
-self.addEventListener('message', (event) => {
-	if (event.data === 'skipWaiting') {
-		self.skipWaiting();
-	}
-});
-
-export {};
+// sw.addEventListener('message', (event) => {
+// 	if (event.data && event.data.type === 'SKIP_WAITING') {
+// 		sw.skipWaiting();
+// 	}
+// });

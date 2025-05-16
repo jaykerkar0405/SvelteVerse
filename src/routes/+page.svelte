@@ -18,25 +18,14 @@
 	import { toggleMode } from 'mode-watcher';
 	import componentCategories from '$lib/data/home';
 	import { Button } from '$lib/components/ui/button';
-	import { useAuth, setAuth } from '$lib/hooks/use-auth';
+	import { useAuth } from '$lib/hooks/use-auth';
 
 	let lastScrollY = 0;
 	const auth = useAuth();
-	let { data } = $props();
 	let activeCategory = $state(0);
 	const { user } = $derived($auth);
 	let isHeaderVisible = $state(true);
 	let showScrollButton = $state(false);
-
-	onMount(() => {
-		// Sync auth store with server state
-		setAuth(data.user);
-
-		window.addEventListener('scroll', handleScroll);
-		return () => {
-			window.removeEventListener('scroll', handleScroll);
-		};
-	});
 
 	// Handle scroll event to show/hide header
 	function handleScroll() {
@@ -53,6 +42,13 @@
 			behavior: 'smooth'
 		});
 	}
+
+	onMount(() => {
+		window.addEventListener('scroll', handleScroll);
+		return () => {
+			window.removeEventListener('scroll', handleScroll);
+		};
+	});
 
 	// Scroll to section function
 	function scrollToSection(sectionId: string) {
