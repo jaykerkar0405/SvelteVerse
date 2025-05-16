@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
-	import { applyUpdate } from '$lib/utils/update-handler';
 
-	let open = false;
+	export let open: boolean;
+	export const registration: ServiceWorkerRegistration | null = null;
 
 	onMount(() => {
 		window.addEventListener('show-update-sheet', () => {
@@ -12,13 +12,11 @@
 	});
 
 	function handleUpdate() {
-		applyUpdate();
+		if (navigator.serviceWorker.controller) {
+			navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+		}
 		open = false;
 		window.location.reload();
-	}
-
-	function testUpdateSheet() {
-		window.dispatchEvent(new Event('show-update-sheet'));
 	}
 </script>
 
