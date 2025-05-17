@@ -3,6 +3,7 @@
 	import { ModeWatcher } from 'mode-watcher';
 	import { setAuth } from '$lib/hooks/use-auth';
 	import { Toaster } from '$lib/components/ui/sonner';
+	import ServiceWorkerHandler from '$lib/components/service-worker-handler.svelte';
 
 	let { data, children } = $props<{ data: { user: any } }>();
 
@@ -18,6 +19,7 @@
 </svelte:head>
 
 <ModeWatcher />
+<ServiceWorkerHandler />
 <Toaster richColors position="bottom-right" />
 
 {@render children?.()}
