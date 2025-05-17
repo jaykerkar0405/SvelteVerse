@@ -1,58 +1,187 @@
-// /// <reference lib="esnext" />
-// /// <reference lib="webworker" />
-// /// <reference no-default-lib="true"/>
-// /// <reference types="@sveltejs/kit" />
+/// <reference lib="esnext" />
+/// <reference lib="webworker" />
+/// <reference no-default-lib="true"/>
+/// <reference types="@sveltejs/kit" />
 
-// import { build, files, version } from '$service-worker';
+import { build, files, version } from '$service-worker';
 
-// const CACHE = `cache-${version}`;
-// const ASSETS = [...build, ...files];
-// const sw = self as unknown as ServiceWorkerGlobalScope;
+let isOnline = true;
+const CACHE = `cache-${version}`;
+const ASSETS = [...build, ...files];
+const sw = self as unknown as ServiceWorkerGlobalScope;
 
-// sw.addEventListener('install', (event) => {
-// 	event.waitUntil(
-// 		(async () => {
-// 			const cache = await caches.open(CACHE);
-// 			await cache.addAll(ASSETS);
-// 		})()
-// 	);
-// });
+// Cache all assets during installation
+sw.addEventListener('install', (event) => {
+	event.waitUntil(
+		(async () => {
+			const cache = await caches.open(CACHE);
+			await cache.addAll(ASSETS);
+		})()
+	);
+});
 
-// sw.addEventListener('activate', (event) => {
-// 	event.waitUntil(
-// 		(async () => {
-// 			const keys = await caches.keys();
-// 			await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)));
-// 		})()
-// 	);
-// });
+// Clean up old caches when activating
+sw.addEventListener('activate', (event) => {
+	event.waitUntil(
+		(async () => {
+			await sw.clients.claim();
+			const keys = await caches.keys();
 
-// sw.addEventListener('fetch', (event) => {
-// 	if (event.request.method !== 'GET') return;
-// 	if (event.request.headers.has('range')) return;
+			await Promise.all(
+				keys
+					.filter((key) => key !== CACHE)
+					.map((key) => {
+						return caches.delete(key);
+					})
+			);
+		})()
+	);
+});
 
-// 	event.respondWith(
-// 		(async () => {
-// 			const cache = await caches.open(CACHE);
-// 			const cachedResponse = await cache.match(event.request);
+// Helper function to check network connection
+async function checkConnectivity() {
+	try {
+		const response = await fetch('/');
+		const newOnlineStatus = response.ok;
 
-// 			if (cachedResponse) {
-// 				return cachedResponse;
-// 			}
+		if (!isOnline && newOnlineStatus) {
+			const clients = await sw.clients.matchAll();
+			clients.forEach((client) => {
+				client.postMessage({ type: 'RECONNECTED' });
+			});
+		}
 
-// 			const networkResponse = await fetch(event.request);
-// 			if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-// 				if (event.request.url.startsWith('http')) {
-// 					await cache.put(event.request, networkResponse.clone());
-// 				}
-// 			}
-// 			return networkResponse;
-// 		})()
-// 	);
-// });
+		isOnline = newOnlineStatus;
+		return isOnline;
+	} catch (err) {
+		isOnline = false;
+		return false;
+	}
+}
 
-// sw.addEventListener('message', (event) => {
-// 	if (event.data && event.data.type === 'SKIP_WAITING') {
-// 		sw.skipWaiting();
-// 	}
-// });
+// Stale-while-revalidate strategy for fetch events
+sw.addEventListener('fetch', (event) => {
+	if (event.request.method !== 'GET' || event.request.headers.has('range')) {
+		return;
+	}
+
+	const url = new URL(event.request.url);
+	if (url.origin !== self.location.origin) {
+		return;
+	}
+
+	if (url.pathname.startsWith('/api/')) {
+		event.respondWith(
+			fetch(event.request).catch(async (err) => {
+				const cachedResponse = await caches.match(event.request);
+				isOnline = false;
+				return cachedResponse || new Response('Network error', { status: 408 });
+			})
+		);
+
+		return;
+	}
+
+	if (event.request.mode === 'navigate') {
+		event.respondWith(
+			(async () => {
+				try {
+					const networkResponse = await fetch(event.request);
+					isOnline = true;
+
+					const cache = await caches.open(CACHE);
+					cache.put(event.request, networkResponse.clone());
+
+					return networkResponse;
+				} catch (err) {
+					isOnline = false;
+					const offlineResponse = await caches.match('/offline');
+					const cachedResponse = await caches.match(event.request);
+
+					return (
+						cachedResponse ||
+						offlineResponse ||
+						new Response('Offline page not found', { status: 404 })
+					);
+				}
+			})()
+		);
+		return;
+	}
+
+	event.respondWith(
+		(async () => {
+			const cache = await caches.open(CACHE);
+			const cachedResponse = await cache.match(event.request);
+
+			if (cachedResponse) {
+				(async () => {
+					try {
+						const networkResponse = await fetch(event.request);
+						isOnline = true;
+						await cache.put(event.request, networkResponse.clone());
+					} catch (err) {
+						isOnline = false;
+						console.log('Background refresh failed', err);
+					}
+				})();
+
+				return cachedResponse;
+			}
+
+			try {
+				const networkResponse = await fetch(event.request);
+				isOnline = true;
+
+				if (networkResponse && networkResponse.ok && networkResponse.type === 'basic') {
+					await cache.put(event.request, networkResponse.clone());
+				}
+
+				return networkResponse;
+			} catch (err) {
+				isOnline = false;
+				return new Response('Network error', { status: 408 });
+			}
+		})()
+	);
+});
+
+// Handle messages from clients
+sw.addEventListener('message', (event) => {
+	if (event.data && event.data.type === 'SKIP_WAITING') {
+		sw.skipWaiting();
+		console.log('Skip waiting, updating service worker immediately');
+	}
+
+	if (event.data && event.data.type === 'CHECK_CONNECTION') {
+		checkConnectivity();
+	}
+});
+
+// Periodic checks for updates (useful for long-lived browser sessions)
+setInterval(
+	() => {
+		(async () => {
+			try {
+				if (!navigator.onLine) return;
+
+				const response = await fetch('/version.json');
+				if (response.ok) {
+					const data = await response.json();
+
+					if (data.version !== version) {
+						const clients = await sw.clients.matchAll();
+						clients.forEach((client) => {
+							client.postMessage({
+								type: 'UPDATE_AVAILABLE'
+							});
+						});
+					}
+				}
+			} catch (err) {
+				console.log('Version check failed', err);
+			}
+		})();
+	},
+	60 * 60 * 1000
+);
