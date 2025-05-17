@@ -7,7 +7,8 @@ import { build, files, version } from '$service-worker';
 
 let isOnline = true;
 const CACHE = `cache-${version}`;
-const ASSETS = [...build, ...files];
+const ASSETS = [...build, ...files, '/offline'];
+
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
 // Cache all assets during installation
@@ -95,14 +96,13 @@ sw.addEventListener('fetch', (event) => {
 					return networkResponse;
 				} catch (err) {
 					isOnline = false;
-					const offlineResponse = await caches.match('/offline');
 					const cachedResponse = await caches.match(event.request);
+					if (cachedResponse) return cachedResponse;
 
-					return (
-						cachedResponse ||
-						offlineResponse ||
-						new Response('Offline page not found', { status: 404 })
-					);
+					const offlinePage = await caches.match('/offline');
+					if (offlinePage) return offlinePage;
+
+					return new Response('Service Unavailable', { status: 503 });
 				}
 			})()
 		);
