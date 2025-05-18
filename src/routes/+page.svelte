@@ -301,8 +301,8 @@
 								<div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
 									<img
 										alt="Creator"
-										class="rounded-full border"
-										src="https://avatars.githubusercontent.com/u/133675904?v=4"
+										src="/creator.webp"
+										class="h-full w-full rounded-full border object-cover"
 									/>
 								</div>
 								<div>
