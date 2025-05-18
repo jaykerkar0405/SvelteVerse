@@ -16,9 +16,9 @@
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { toggleMode } from 'mode-watcher';
+	import { useAuth } from '$lib/hooks/use-auth';
 	import componentCategories from '$lib/data/home';
 	import { Button } from '$lib/components/ui/button';
-	import { useAuth } from '$lib/hooks/use-auth';
 
 	let lastScrollY = 0;
 	const auth = useAuth();
