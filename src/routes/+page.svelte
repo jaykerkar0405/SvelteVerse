@@ -9,6 +9,7 @@
 		Github,
 		Package,
 		ArrowUp,
+		Download,
 		FileCode,
 		ExternalLink,
 		LayoutDashboard
@@ -20,12 +21,19 @@
 	import componentCategories from '$lib/data/home';
 	import { Button } from '$lib/components/ui/button';
 
+	interface BeforeInstallPromptEvent extends Event {
+		prompt: () => Promise<void>;
+		userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+	}
+
 	let lastScrollY = 0;
 	const auth = useAuth();
 	let activeCategory = $state(0);
 	const { user } = $derived($auth);
 	let isHeaderVisible = $state(true);
 	let showScrollButton = $state(false);
+	let isPwaInstallable = $state(false);
+	let deferredPrompt: BeforeInstallPromptEvent | null = $state(null);
 
 	// Handle scroll event to show/hide header
 	function handleScroll() {
@@ -43,10 +51,46 @@
 		});
 	}
 
+	function handleInstallClick() {
+		if (!deferredPrompt) return;
+
+		deferredPrompt.prompt();
+		deferredPrompt.userChoice
+			.then(() => {
+				deferredPrompt = null;
+				isPwaInstallable = false;
+			})
+			.catch((error) => {
+				console.error('Install prompt error:', error);
+			});
+	}
+
+	const handleBeforeInstallPrompt = (event: Event) => {
+		if (!(event instanceof Event) || !('prompt' in event) || !('userChoice' in event)) {
+			return;
+		}
+
+		const pwaEvent = event as BeforeInstallPromptEvent;
+		event.preventDefault();
+
+		deferredPrompt = pwaEvent;
+		isPwaInstallable = true;
+	};
+
+	const handleAppInstalled = () => {
+		deferredPrompt = null;
+		isPwaInstallable = false;
+	};
+
 	onMount(() => {
 		window.addEventListener('scroll', handleScroll);
+		window.addEventListener('appinstalled', handleAppInstalled);
+		window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
 		return () => {
 			window.removeEventListener('scroll', handleScroll);
+			window.removeEventListener('appinstalled', handleAppInstalled);
+			window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 		};
 	});
 
@@ -99,6 +143,13 @@
 			</nav>
 
 			<div class="flex items-center gap-4">
+				{#if isPwaInstallable}
+					<Button variant="outline" onclick={handleInstallClick}>
+						<Download class="h-4 w-4" />
+						<span class="ml-2 hidden md:inline">Install App</span>
+					</Button>
+				{/if}
+
 				<Button href={user ? '/dashboard' : '/auth'}>
 					{#if user}
 						<LayoutDashboard class="h-4 w-4" />
