@@ -33,7 +33,7 @@
 				Remind Me Later
 			</Sheet.Close>
 			<button
-				on:click={handleUpdate}
+				onclick={handleUpdate}
 				class="rounded-md bg-primary px-4 py-2 text-primary-foreground"
 			>
 				Update Now
