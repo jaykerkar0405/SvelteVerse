@@ -1,16 +1,5 @@
-<script lang="ts" module>
-	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
-
-	const data = [
-		{
-			url: '#',
-			title: 'Playground',
-			icon: SquareTerminal
-		}
-	];
-</script>
-
 <script lang="ts">
+	import { Mic } from 'lucide-svelte';
 	import type { ComponentProps } from 'svelte';
 	import NavMain from '$lib/components/nav-main.svelte';
 	import NavUser from '$lib/components/nav-user.svelte';
@@ -21,6 +10,28 @@
 		collapsible = 'icon',
 		...restProps
 	}: ComponentProps<typeof Sidebar.Root> = $props();
+
+	const navItems = [
+		{
+			label: 'WebRTC',
+			items: [
+				{
+					icon: Mic,
+					title: 'Audio',
+					items: [
+						{
+							url: '',
+							title: 'peer 2 peer'
+						},
+						{
+							url: '',
+							title: 'multi peer'
+						}
+					]
+				}
+			]
+		}
+	];
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
@@ -38,7 +49,9 @@
 	</Sidebar.Header>
 
 	<Sidebar.Content>
-		<NavMain label="Platform" items={data} />
+		{#each navItems as navItem}
+			<NavMain label={navItem.label} items={navItem.items} />
+		{/each}
 	</Sidebar.Content>
 
 	<Sidebar.Footer>
