@@ -6,7 +6,6 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import AudioRoom from '$lib/components/audio-room/AudioRoom.svelte';
 	import { Users, Mic, Key, ArrowRight, Sparkles } from 'lucide-svelte';
 
 	const auth = useAuth();
