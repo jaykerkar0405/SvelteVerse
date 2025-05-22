@@ -1,19 +1,16 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
-	import { useAuth } from '$lib/hooks/use-auth';
 	import { Card } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
+	import AudioRoom from '$lib/components/audio-room.svelte';
 	import { Users, Mic, Key, ArrowRight, Sparkles } from 'lucide-svelte';
 
-	const auth = useAuth();
-	const { user } = $derived($auth);
-
 	let error = $state('');
+	let channel = $state('');
 	let loading = $state(false);
-	let channelName = $state('');
 	let isJoining = $state(false);
 
 	const channelPattern = /^\d{3}-[a-z]{4}-\d{3}$/;
@@ -31,7 +28,7 @@
 	const handleJoin = async () => {
 		error = '';
 
-		if (!channelPattern.test(channelName)) {
+		if (!channelPattern.test(channel)) {
 			error =
 				'Channel name must be in the format: 123-abcd-456 (3 digits, 4 lowercase letters, 3 digits)';
 			return;
@@ -44,7 +41,7 @@
 	};
 
 	const handleRandomJoin = async () => {
-		channelName = generateRandomChannel();
+		channel = generateRandomChannel();
 
 		error = '';
 		loading = true;
@@ -54,7 +51,7 @@
 	};
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-background p-4">
+<div class="flex min-h-[93vh] items-center justify-center bg-background p-4">
 	{#if !isJoining}
 		<div transition:fade={{ duration: 300 }} class="w-full max-w-md">
 			<Card class="relative overflow-hidden p-8 shadow-lg">
@@ -89,7 +86,8 @@
 								<Input
 									id="channel"
 									disabled={loading}
-									bind:value={channelName}
+									autocomplete="off"
+									bind:value={channel}
 									placeholder="e.g. 123-abcd-456"
 									class="h-11 w-full pl-10 transition-all focus:ring-2 focus:ring-primary/20"
 								/>
@@ -111,7 +109,7 @@
 						<div class="space-y-3">
 							<Button
 								onclick={handleJoin}
-								disabled={!channelName || loading}
+								disabled={!channel || loading}
 								class="h-11 w-full transition-all hover:scale-[1.02]"
 							>
 								{#if loading}
@@ -150,14 +148,6 @@
 			</Card>
 		</div>
 	{:else}
-		<div transition:fade={{ duration: 300 }} class="text-center">
-			<div class="mb-4 flex justify-center">
-				<div class="flex items-center justify-center rounded-full bg-primary/10 p-4">
-					<Spinner className="h-8 w-8 text-primary" />
-				</div>
-			</div>
-			<h2 class="text-xl font-semibold">Joining Room...</h2>
-			<p class="mt-2 text-sm text-muted-foreground">Please wait while we connect you</p>
-		</div>
+		<AudioRoom {channel} />
 	{/if}
 </div>
