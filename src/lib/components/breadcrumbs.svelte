@@ -32,7 +32,7 @@
 			<Breadcrumb.Item>
 				<Breadcrumb.Link
 					href={item.href}
-					class={idx === items.length - 1 ? 'font-semibold text-primary' : ''}
+					class={idx === items.length - 1 ? 'font-semibold text-foreground' : ''}
 				>
 					{item.label}
 				</Breadcrumb.Link>
