@@ -10,7 +10,7 @@
 		label: string;
 		items: {
 			icon: any;
-			url: string;
+			url?: string;
 			title: string;
 			isActive?: boolean;
 			items?: {
