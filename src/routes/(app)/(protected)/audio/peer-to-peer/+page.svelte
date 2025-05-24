@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import { fade } from 'svelte/transition';
 	import { Card } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
@@ -34,24 +36,47 @@
 			return;
 		}
 
-		loading = true;
-		await new Promise((r) => setTimeout(r, 1000));
-		loading = false;
-		isJoining = true;
+		try {
+			loading = true;
+			isJoining = true;
+		} catch (err) {
+			error = 'Failed to join the room. Please try again.';
+			console.error('Join error:', err);
+		} finally {
+			loading = false;
+		}
 	};
 
 	const handleRandomJoin = async () => {
 		channel = generateRandomChannel();
-
 		error = '';
-		loading = true;
-		await new Promise((r) => setTimeout(r, 1000));
-		loading = false;
-		isJoining = true;
+
+		try {
+			loading = true;
+			isJoining = true;
+		} catch (err) {
+			error = 'Failed to create and join the room. Please try again.';
+			console.error('Random join error:', err);
+		} finally {
+			loading = false;
+		}
 	};
+
+	onMount(() => {
+		isJoining = false;
+	});
+
+	$effect(() => {
+		if ($page.url.searchParams.get('reset')) {
+			isJoining = false;
+			error = '';
+			channel = '';
+			loading = false;
+		}
+	});
 </script>
 
-<div class="flex min-h-[93vh] items-center justify-center bg-background p-4">
+<div class="flex min-h-[93vh] items-center justify-center bg-background px-6 py-4">
 	{#if !isJoining}
 		<div transition:fade={{ duration: 300 }} class="w-full max-w-md">
 			<Card class="relative overflow-hidden p-8 shadow-lg">
