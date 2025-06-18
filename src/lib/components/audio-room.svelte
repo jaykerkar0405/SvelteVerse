@@ -68,6 +68,14 @@
 			client.on('user-published', async (user, type) => {
 				try {
 					if (type === 'audio') {
+						const existingUser = users.find((u) => u.uid === user.uid);
+						if (existingUser) {
+							await client.subscribe(user, 'audio');
+							user.audioTrack?.play();
+							remoteMuted = false;
+							return;
+						}
+
 						if (users.length >= 2) {
 							await cleanup();
 							toast.error('Room is full', {
@@ -200,11 +208,68 @@
 		</div>
 	</div>
 {:else}
-	<div class="fade relative flex h-[89vh] w-full flex-col overflow-hidden">
+	<div class="fade relative flex h-[89vh] w-full flex-col">
 		<header
-			class="sticky top-0 z-30 flex w-full items-center justify-between gap-4 border-b border-border bg-background px-4 py-3 shadow-sm backdrop-blur-md"
+			class="sticky top-0 z-30 flex w-full items-center justify-between gap-2 border-b border-border bg-background px-3 py-3 shadow-sm backdrop-blur-md sm:gap-4 sm:px-4"
 		>
-			<div class="flex min-w-0 items-center gap-4">
+			<div class="flex w-full flex-col gap-2 sm:hidden">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<Users class="h-4 w-4 shrink-0 text-primary" />
+						<span class="text-sm font-bold tracking-tight">P2P Audio</span>
+					</div>
+					<Button
+						size="icon"
+						variant="ghost"
+						title="Copy channel"
+						onclick={copyChannel}
+						aria-label="Copy channel"
+						class="h-8 w-8"
+					>
+						<Copy class="h-3 w-3" />
+					</Button>
+				</div>
+				<div class="flex items-center justify-between">
+					<Badge
+						class="flex h-6 shrink-0 items-center rounded-full bg-primary px-2 py-1 text-xs font-medium text-primary-foreground"
+					>
+						{channel}
+					</Badge>
+					<div
+						class="flex h-6 flex-row items-center gap-2 rounded-full border border-border bg-secondary px-2 py-1 shadow"
+					>
+						<div class="flex -space-x-1">
+							<div
+								class="flex h-4 w-4 items-center justify-center rounded-full border bg-primary/20"
+							>
+								{#if user?.image}
+									<img src={user.image} alt="You" class="h-full w-full rounded-full object-cover" />
+								{:else}
+									<User class="h-3 w-3 text-primary" />
+								{/if}
+							</div>
+							{#if users.length > 0}
+								<div
+									class="flex h-4 w-4 items-center justify-center rounded-full border bg-secondary/20"
+								>
+									{#if remoteUserImage}
+										<img
+											alt="Remote"
+											src={remoteUserImage}
+											class="h-full w-full rounded-full object-cover"
+										/>
+									{:else}
+										<User class="h-3 w-3 text-secondary" />
+									{/if}
+								</div>
+							{/if}
+						</div>
+						<span class="ml-1 text-xs font-medium text-foreground">{1 + users.length}</span>
+					</div>
+				</div>
+			</div>
+
+			<div class="hidden min-w-0 items-center gap-4 sm:flex">
 				<Users class="h-5 w-5 shrink-0 text-primary" />
 				<span class="hidden text-lg font-bold tracking-tight lg:block">Peer To Peer Audio Room</span
 				>
@@ -215,7 +280,7 @@
 				</Badge>
 			</div>
 
-			<div class="flex items-center gap-3">
+			<div class="hidden items-center gap-3 sm:flex">
 				<div
 					class="flex h-8 flex-row items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 shadow"
 				>
@@ -260,7 +325,7 @@
 			</div>
 		</header>
 
-		<main class="flex w-full flex-1 flex-col items-center justify-center overflow-y-auto px-2 py-6">
+		<main class="flex w-full flex-1 flex-col items-center justify-center px-2 py-6">
 			<div
 				class="grid w-full max-w-2xl grid-cols-1 items-center justify-center gap-6 sm:grid-cols-2 md:gap-10"
 			>
