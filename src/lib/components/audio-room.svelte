@@ -340,9 +340,6 @@
 						{:else}
 							<User class="h-8 w-8 text-primary sm:h-10 sm:w-10" />
 						{/if}
-						<span class="absolute -bottom-2 -right-2 z-10">
-							<span class="status-dot {isMuted ? 'status-muted' : 'status-active'}"></span>
-						</span>
 					</div>
 
 					<Card.Title class="text-center text-base font-semibold sm:text-lg">You</Card.Title>
@@ -367,9 +364,6 @@
 							{:else}
 								<User class="h-8 w-8 text-secondary sm:h-10 sm:w-10" />
 							{/if}
-							<span class="absolute -bottom-2 -right-2 z-10">
-								<span class="status-dot {remoteMuted ? 'status-muted' : 'status-active'}"></span>
-							</span>
 						</div>
 						<Card.Title class="text-center text-base font-semibold sm:text-lg">
 							{#if remoteUserName}
@@ -390,9 +384,6 @@
 							class="relative z-0 mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 bg-muted text-2xl font-semibold text-muted-foreground sm:h-24 sm:w-24"
 						>
 							<HelpCircle class="h-8 w-8 sm:h-10 sm:w-10" />
-							<span class="absolute -bottom-2 -right-2 z-10">
-								<span class="status-dot status-waiting"></span>
-							</span>
 						</div>
 						<Card.Title class="text-center text-base font-semibold sm:text-lg"
 							>Waiting for peer...</Card.Title
@@ -439,26 +430,6 @@
 {/if}
 
 <style>
-	.status-dot {
-		display: inline-block;
-		width: 14px;
-		height: 14px;
-		border-radius: 50%;
-		margin-right: 0.5rem;
-		border: 2px solid #18181b;
-		z-index: 10;
-		position: relative;
-	}
-	.status-active {
-		background: #22c55e;
-	}
-	.status-muted {
-		background: #ef4444;
-	}
-	.status-waiting {
-		background: #a3a3a3;
-	}
-
 	.fade {
 		animation: fade 0.3s ease-in-out;
 	}
