@@ -17,19 +17,27 @@
 	const { user } = $derived($auth);
 
 	let { channel } = $props();
-	let isCameraOff = $state(false);
 	let isJoining = $state(true);
+	let isCameraOff = $state(false);
 	let remoteCameraOff = $state(false);
 	let error = $state<string | null>(null);
 	let video: ILocalVideoTrack | null = null;
 	let users: IAgoraRTCRemoteUser[] = $state([]);
 	let remoteUserName: string | null = $state(null);
 	let remoteUserImage: string | null = $state(null);
-	let localVideoContainer: HTMLDivElement | null = $state(null);
-	let remoteVideoContainer: HTMLDivElement | null = $state(null);
 
 	AgoraRTC.setLogLevel(2);
 	const client = browser ? AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }) : null;
+
+	const renderVideo = (_node: any, user: IAgoraRTCRemoteUser) => {
+		user.videoTrack?.play(String(user.uid));
+	};
+
+	const renderLocalVideo = (_node: any) => {
+		if (video && !isCameraOff) {
+			video.play('local-video');
+		}
+	};
 
 	async function cleanup() {
 		try {
@@ -73,14 +81,12 @@
 						const existingUser = users.find((u) => u.uid === user.uid);
 						if (existingUser) {
 							await client.subscribe(user, 'video');
-							if (user.videoTrack && remoteVideoContainer) {
-								user.videoTrack.play(remoteVideoContainer);
-							}
+							user.videoTrack?.play(String(user.uid));
 							remoteCameraOff = false;
 							return;
 						}
 
-						if (users.length >= 2) {
+						if (users.length >= 1) {
 							await cleanup();
 							toast.error('Room is full', {
 								description: 'This is a peer-to-peer room that only supports 2 users.'
@@ -91,9 +97,7 @@
 						}
 
 						await client.subscribe(user, 'video');
-						if (user.videoTrack && remoteVideoContainer) {
-							user.videoTrack.play(remoteVideoContainer);
-						}
+						user.videoTrack?.play(String(user.uid));
 						users = [...users, user];
 						remoteCameraOff = false;
 
@@ -140,8 +144,8 @@
 					await client.join(PUBLIC_AGORA_APP_ID, channel, null, user?.id ?? '');
 					await client.publish([video]);
 
-					if (video && localVideoContainer) {
-						video.play(localVideoContainer);
+					if (video) {
+						video.play('local-video');
 					}
 
 					isJoining = false;
@@ -176,9 +180,7 @@
 					client.unpublish([video]);
 				} else {
 					client.publish([video]);
-					if (localVideoContainer) {
-						video.play(localVideoContainer);
-					}
+					video.play('local-video');
 				}
 			}
 		} catch (err) {
@@ -235,10 +237,10 @@
 					<Button
 						size="icon"
 						variant="ghost"
+						class="h-8 w-8"
 						title="Copy channel"
 						onclick={copyChannel}
 						aria-label="Copy channel"
-						class="h-8 w-8"
 					>
 						<Copy class="h-3 w-3" />
 					</Button>
@@ -363,9 +365,15 @@
 							</Card.Description>
 						</div>
 					{:else}
-						<div bind:this={localVideoContainer} class="video-container h-full w-full"></div>
-						<div class="absolute bottom-4 left-4 rounded-lg bg-black/50 px-2 py-1">
-							<span class="text-sm font-medium text-white">You</span>
+						<div
+							use:renderLocalVideo
+							class="video-container absolute inset-0"
+							id="local-video"
+						></div>
+						<div
+							class="absolute bottom-4 left-4 rounded-lg border border-border bg-background/80 px-2 py-1 backdrop-blur-sm"
+						>
+							<span class="text-sm font-medium text-foreground">You</span>
 						</div>
 					{/if}
 					<span class="absolute -bottom-2 -right-2 z-10">
@@ -374,6 +382,7 @@
 				</Card.Root>
 
 				{#if users.length > 0}
+					{@const user = users[0]}
 					<Card.Root
 						class="card-glow relative flex min-h-[300px] w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-all duration-300"
 					>
@@ -404,9 +413,15 @@
 								</Card.Description>
 							</div>
 						{:else}
-							<div bind:this={remoteVideoContainer} class="video-container h-full w-full"></div>
-							<div class="absolute bottom-4 left-4 rounded-lg bg-black/50 px-2 py-1">
-								<span class="text-sm font-medium text-white">
+							<div
+								id={String(user.uid)}
+								use:renderVideo={user}
+								class="video-container absolute inset-0"
+							></div>
+							<div
+								class="absolute bottom-4 left-4 rounded-lg border border-border bg-background/80 px-2 py-1 backdrop-blur-sm"
+							>
+								<span class="text-sm font-medium text-foreground">
 									{#if remoteUserName}
 										{toTitleCase(remoteUserName)}
 									{:else}
@@ -449,8 +464,8 @@
 				<Button
 					size="icon"
 					onclick={toggleCamera}
-					title={isCameraOff ? 'Turn on camera' : 'Turn off camera'}
 					variant={isCameraOff ? 'destructive' : 'default'}
+					title={isCameraOff ? 'Turn on camera' : 'Turn off camera'}
 					aria-label={isCameraOff ? 'Turn on camera' : 'Turn off camera'}
 					class="flex h-12 w-12 items-center justify-center rounded-full sm:h-14 sm:w-14"
 				>
@@ -477,6 +492,14 @@
 
 <style>
 	.video-container {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+	}
+
+	.video-container :global(video) {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
@@ -489,18 +512,18 @@
 		height: 14px;
 		border-radius: 50%;
 		margin-right: 0.5rem;
-		border: 2px solid #18181b;
+		border: 2px solid hsl(var(--background));
 		z-index: 10;
 		position: relative;
 	}
 	.status-active {
-		background: #22c55e;
+		background: hsl(var(--success));
 	}
 	.status-muted {
-		background: #ef4444;
+		background: hsl(var(--destructive));
 	}
 	.status-waiting {
-		background: #a3a3a3;
+		background: hsl(var(--muted-foreground));
 	}
 
 	.fade {
