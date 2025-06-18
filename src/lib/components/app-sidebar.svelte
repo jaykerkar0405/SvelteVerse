@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { Mic, Video } from 'lucide-svelte';
 	import type { ComponentProps } from 'svelte';
 	import NavMain from '$lib/components/nav-main.svelte';
 	import NavUser from '$lib/components/nav-user.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar';
+	import { Mic, MonitorSpeaker, Video } from 'lucide-svelte';
 
 	let {
 		ref = $bindable(null),
@@ -32,6 +32,16 @@
 						{
 							title: 'Peer to Peer',
 							url: '/video/peer-to-peer'
+						}
+					]
+				},
+				{
+					title: 'AV Room',
+					icon: MonitorSpeaker,
+					items: [
+						{
+							title: 'Peer to Peer',
+							url: '/av/peer-to-peer'
 						}
 					]
 				}
