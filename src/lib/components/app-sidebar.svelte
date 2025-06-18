@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Mic } from 'lucide-svelte';
+	import { Mic, Video } from 'lucide-svelte';
 	import type { ComponentProps } from 'svelte';
 	import NavMain from '$lib/components/nav-main.svelte';
 	import NavUser from '$lib/components/nav-user.svelte';
@@ -22,6 +22,16 @@
 						{
 							title: 'Peer to Peer',
 							url: '/audio/peer-to-peer'
+						}
+					]
+				},
+				{
+					icon: Video,
+					title: 'Video Room',
+					items: [
+						{
+							title: 'Peer to Peer',
+							url: '/video/peer-to-peer'
 						}
 					]
 				}

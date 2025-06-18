@@ -10,30 +10,32 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { PUBLIC_AGORA_APP_ID } from '$env/static/public';
-	import { Mic, MicOff, Copy, PhoneOff, Users, User, HelpCircle } from 'lucide-svelte';
-	import AgoraRTC, { type IAgoraRTCRemoteUser, type ILocalAudioTrack } from 'agora-rtc-sdk-ng';
+	import { Video, VideoOff, Copy, PhoneOff, Users, User, HelpCircle } from 'lucide-svelte';
+	import AgoraRTC, { type IAgoraRTCRemoteUser, type ILocalVideoTrack } from 'agora-rtc-sdk-ng';
 
 	const auth = useAuth();
 	const { user } = $derived($auth);
 
 	let { channel } = $props();
-	let isMuted = $state(false);
+	let isCameraOff = $state(false);
 	let isJoining = $state(true);
-	let remoteMuted = $state(false);
+	let remoteCameraOff = $state(false);
 	let error = $state<string | null>(null);
-	let audio: ILocalAudioTrack | null = null;
+	let video: ILocalVideoTrack | null = null;
 	let users: IAgoraRTCRemoteUser[] = $state([]);
 	let remoteUserName: string | null = $state(null);
 	let remoteUserImage: string | null = $state(null);
+	let localVideoContainer: HTMLDivElement | null = $state(null);
+	let remoteVideoContainer: HTMLDivElement | null = $state(null);
 
 	AgoraRTC.setLogLevel(2);
 	const client = browser ? AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }) : null;
 
 	async function cleanup() {
 		try {
-			if (audio) {
-				audio.close();
-				audio = null;
+			if (video) {
+				video.close();
+				video = null;
 			}
 
 			if (client) {
@@ -49,7 +51,7 @@
 
 	async function initializeRoom() {
 		if (!browser || !client) {
-			error = 'Audio room cannot be initialized in server-side rendering';
+			error = 'Video room cannot be initialized in server-side rendering';
 			isJoining = false;
 			return;
 		}
@@ -60,19 +62,21 @@
 			}
 
 			try {
-				audio = await AgoraRTC.createMicrophoneAudioTrack();
+				video = await AgoraRTC.createCameraVideoTrack();
 			} catch (err) {
-				throw new Error('Failed to access microphone. Please check your microphone permissions.');
+				throw new Error('Failed to access camera. Please check your camera permissions.');
 			}
 
 			client.on('user-published', async (user, type) => {
 				try {
-					if (type === 'audio') {
+					if (type === 'video') {
 						const existingUser = users.find((u) => u.uid === user.uid);
 						if (existingUser) {
-							await client.subscribe(user, 'audio');
-							user.audioTrack?.play();
-							remoteMuted = false;
+							await client.subscribe(user, 'video');
+							if (user.videoTrack && remoteVideoContainer) {
+								user.videoTrack.play(remoteVideoContainer);
+							}
+							remoteCameraOff = false;
 							return;
 						}
 
@@ -82,14 +86,16 @@
 								description: 'This is a peer-to-peer room that only supports 2 users.'
 							});
 
-							goto('/audio/peer-to-peer');
+							goto('/video/peer-to-peer');
 							return;
 						}
 
-						await client.subscribe(user, 'audio');
-						user.audioTrack?.play();
+						await client.subscribe(user, 'video');
+						if (user.videoTrack && remoteVideoContainer) {
+							user.videoTrack.play(remoteVideoContainer);
+						}
 						users = [...users, user];
-						remoteMuted = false;
+						remoteCameraOff = false;
 
 						try {
 							const res = await fetch(`/api/user/${user.uid}`);
@@ -111,8 +117,8 @@
 			});
 
 			client.on('user-unpublished', (user, type) => {
-				if (type === 'audio') {
-					remoteMuted = true;
+				if (type === 'video') {
+					remoteCameraOff = true;
 				}
 			});
 
@@ -132,7 +138,12 @@
 			while (retryCount < maxRetries) {
 				try {
 					await client.join(PUBLIC_AGORA_APP_ID, channel, null, user?.id ?? '');
-					await client.publish([audio]);
+					await client.publish([video]);
+
+					if (video && localVideoContainer) {
+						video.play(localVideoContainer);
+					}
+
 					isJoining = false;
 					error = null;
 					break;
@@ -157,25 +168,28 @@
 		}
 	}
 
-	function toggleMute() {
+	function toggleCamera() {
 		try {
-			if (audio && client) {
-				isMuted = !isMuted;
-				if (isMuted) {
-					client.unpublish([audio]);
+			if (video && client) {
+				isCameraOff = !isCameraOff;
+				if (isCameraOff) {
+					client.unpublish([video]);
 				} else {
-					client.publish([audio]);
+					client.publish([video]);
+					if (localVideoContainer) {
+						video.play(localVideoContainer);
+					}
 				}
 			}
 		} catch (err) {
-			console.error('Error toggling mute:', err);
-			error = 'Failed to toggle microphone. Please try again.';
+			console.error('Error toggling camera:', err);
+			error = 'Failed to toggle camera. Please try again.';
 		}
 	}
 
 	async function endCall() {
 		await cleanup();
-		goto('/audio/peer-to-peer?reset=' + Date.now());
+		goto('/video/peer-to-peer?reset=' + Date.now());
 	}
 
 	function copyChannel() {
@@ -194,7 +208,7 @@
 
 {#if isJoining}
 	<div class="fade">
-		<RoomJoining {channel} type="audio" />
+		<RoomJoining {channel} type="video" />
 	</div>
 {:else if error}
 	<div class="fade flex h-full w-full items-center justify-center p-4">
@@ -216,7 +230,7 @@
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<Users class="h-4 w-4 shrink-0 text-primary" />
-						<span class="text-sm font-bold tracking-tight">P2P Audio</span>
+						<span class="text-sm font-bold tracking-tight">P2P Video</span>
 					</div>
 					<Button
 						size="icon"
@@ -271,7 +285,7 @@
 
 			<div class="hidden min-w-0 items-center gap-4 sm:flex">
 				<Users class="h-5 w-5 shrink-0 text-primary" />
-				<span class="hidden text-lg font-bold tracking-tight lg:block">Peer To Peer Audio Room</span
+				<span class="hidden text-lg font-bold tracking-tight lg:block">Peer To Peer Video Room</span
 				>
 				<Badge
 					class="ml-2 flex h-8 shrink-0 items-center rounded-full bg-primary px-3 py-1 text-sm font-medium text-primary-foreground"
@@ -327,64 +341,87 @@
 
 		<main class="flex w-full flex-1 flex-col items-center justify-center px-2 py-6">
 			<div
-				class="grid w-full max-w-2xl grid-cols-1 items-center justify-center gap-6 sm:grid-cols-2 md:gap-10"
+				class="grid w-full max-w-4xl grid-cols-1 items-center justify-center gap-6 sm:grid-cols-2 md:gap-10"
 			>
 				<Card.Root
-					class="card-glow flex min-h-[260px] w-full flex-col items-center justify-center rounded-2xl border border-border bg-card p-4 shadow-lg transition-all duration-300 sm:p-6"
+					class="card-glow relative flex min-h-[300px] w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-all duration-300"
 				>
-					<div
-						class="relative z-0 mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-primary/30 bg-primary/10 text-2xl font-semibold text-primary sm:h-24 sm:w-24"
-					>
-						{#if user?.image}
-							<img src={user.image} alt="You" class="h-full w-full rounded-full object-cover" />
-						{:else}
-							<User class="h-8 w-8 text-primary sm:h-10 sm:w-10" />
-						{/if}
-						<span class="absolute -bottom-2 -right-2 z-10">
-							<span class="status-dot {isMuted ? 'status-muted' : 'status-active'}"></span>
-						</span>
-					</div>
-
-					<Card.Title class="text-center text-base font-semibold sm:text-lg">You</Card.Title>
-					<Card.Description class="mt-1 text-center text-xs text-muted-foreground sm:text-sm">
-						{isMuted ? 'Muted' : 'Active'}
-					</Card.Description>
+					{#if isCameraOff}
+						<div class="flex h-full w-full flex-col items-center justify-center p-6">
+							<div
+								class="mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-primary/30 bg-primary/10 text-2xl font-semibold text-primary sm:h-24 sm:w-24"
+							>
+								{#if user?.image}
+									<img src={user.image} alt="You" class="h-full w-full rounded-full object-cover" />
+								{:else}
+									<User class="h-8 w-8 text-primary sm:h-10 sm:w-10" />
+								{/if}
+							</div>
+							<Card.Title class="text-center text-base font-semibold sm:text-lg">You</Card.Title>
+							<Card.Description class="mt-1 text-center text-xs text-muted-foreground sm:text-sm">
+								Camera Off
+							</Card.Description>
+						</div>
+					{:else}
+						<div bind:this={localVideoContainer} class="video-container h-full w-full"></div>
+						<div class="absolute bottom-4 left-4 rounded-lg bg-black/50 px-2 py-1">
+							<span class="text-sm font-medium text-white">You</span>
+						</div>
+					{/if}
+					<span class="absolute -bottom-2 -right-2 z-10">
+						<span class="status-dot {isCameraOff ? 'status-muted' : 'status-active'}"></span>
+					</span>
 				</Card.Root>
 
 				{#if users.length > 0}
 					<Card.Root
-						class="card-glow flex min-h-[260px] w-full flex-col items-center justify-center rounded-2xl border border-border bg-card p-4 shadow-lg transition-all duration-300 sm:p-6"
+						class="card-glow relative flex min-h-[300px] w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-all duration-300"
 					>
-						<div
-							class="relative z-0 mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-secondary/30 bg-secondary/10 text-2xl font-semibold text-secondary sm:h-24 sm:w-24"
-						>
-							{#if remoteUserImage}
-								<img
-									src={remoteUserImage}
-									alt={remoteUserName ?? 'User'}
-									class="h-full w-full rounded-full object-cover"
-								/>
-							{:else}
-								<User class="h-8 w-8 text-secondary sm:h-10 sm:w-10" />
-							{/if}
-							<span class="absolute -bottom-2 -right-2 z-10">
-								<span class="status-dot {remoteMuted ? 'status-muted' : 'status-active'}"></span>
-							</span>
-						</div>
-						<Card.Title class="text-center text-base font-semibold sm:text-lg">
-							{#if remoteUserName}
-								{toTitleCase(remoteUserName)}
-							{:else}
-								<span class="opacity-50">Connecting...</span>
-							{/if}
-						</Card.Title>
-						<Card.Description class="mt-1 text-center text-xs text-muted-foreground sm:text-sm">
-							{remoteMuted ? 'Muted' : 'Active'}
-						</Card.Description>
+						{#if remoteCameraOff}
+							<div class="flex h-full w-full flex-col items-center justify-center p-6">
+								<div
+									class="mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-secondary/30 bg-secondary/10 text-2xl font-semibold text-secondary sm:h-24 sm:w-24"
+								>
+									{#if remoteUserImage}
+										<img
+											src={remoteUserImage}
+											alt={remoteUserName ?? 'User'}
+											class="h-full w-full rounded-full object-cover"
+										/>
+									{:else}
+										<User class="h-8 w-8 text-secondary sm:h-10 sm:w-10" />
+									{/if}
+								</div>
+								<Card.Title class="text-center text-base font-semibold sm:text-lg">
+									{#if remoteUserName}
+										{toTitleCase(remoteUserName)}
+									{:else}
+										<span class="opacity-50">Connecting...</span>
+									{/if}
+								</Card.Title>
+								<Card.Description class="mt-1 text-center text-xs text-muted-foreground sm:text-sm">
+									Camera Off
+								</Card.Description>
+							</div>
+						{:else}
+							<div bind:this={remoteVideoContainer} class="video-container h-full w-full"></div>
+							<div class="absolute bottom-4 left-4 rounded-lg bg-black/50 px-2 py-1">
+								<span class="text-sm font-medium text-white">
+									{#if remoteUserName}
+										{toTitleCase(remoteUserName)}
+									{:else}
+										Remote User
+									{/if}
+								</span>
+							</div>
+						{/if}
+						<span class="absolute -bottom-2 -right-2 z-10">
+							<span class="status-dot {remoteCameraOff ? 'status-muted' : 'status-active'}"></span>
+						</span>
 					</Card.Root>
 				{:else}
 					<Card.Root
-						class="card-glow flex min-h-[260px] w-full flex-col items-center justify-center rounded-2xl border border-border bg-card p-4 shadow-lg transition-all duration-300 sm:p-6"
+						class="card-glow flex min-h-[300px] w-full flex-col items-center justify-center rounded-2xl border border-border bg-card p-4 shadow-lg transition-all duration-300 sm:p-6"
 					>
 						<div
 							class="relative z-0 mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 bg-muted text-2xl font-semibold text-muted-foreground sm:h-24 sm:w-24"
@@ -411,16 +448,16 @@
 			>
 				<Button
 					size="icon"
-					onclick={toggleMute}
-					title={isMuted ? 'Unmute mic' : 'Mute mic'}
-					variant={isMuted ? 'destructive' : 'default'}
-					aria-label={isMuted ? 'Unmute mic' : 'Mute mic'}
+					onclick={toggleCamera}
+					title={isCameraOff ? 'Turn on camera' : 'Turn off camera'}
+					variant={isCameraOff ? 'destructive' : 'default'}
+					aria-label={isCameraOff ? 'Turn on camera' : 'Turn off camera'}
 					class="flex h-12 w-12 items-center justify-center rounded-full sm:h-14 sm:w-14"
 				>
-					{#if isMuted}
-						<MicOff class="h-6 w-6 sm:h-7 sm:w-7" />
+					{#if isCameraOff}
+						<VideoOff class="h-6 w-6 sm:h-7 sm:w-7" />
 					{:else}
-						<Mic class="h-6 w-6 sm:h-7 sm:w-7" />
+						<Video class="h-6 w-6 sm:h-7 sm:w-7" />
 					{/if}
 				</Button>
 				<Button
@@ -439,6 +476,13 @@
 {/if}
 
 <style>
+	.video-container {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		border-radius: inherit;
+	}
+
 	.status-dot {
 		display: inline-block;
 		width: 14px;
