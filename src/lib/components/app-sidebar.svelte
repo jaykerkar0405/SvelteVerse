@@ -46,16 +46,6 @@
 					]
 				}
 			]
-		},
-		{
-			label: 'Health',
-			items: [
-				{
-					icon: Utensils,
-					title: 'Macro Tracking',
-					url: '/health/macro-tracking'
-				}
-			]
 		}
 	];
 </script>
