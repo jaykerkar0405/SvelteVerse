@@ -30,12 +30,13 @@
 	<Breadcrumb.List>
 		{#each items as item, idx (item.label)}
 			<Breadcrumb.Item>
-				<Breadcrumb.Link
-					href={item.href}
-					class={idx === items.length - 1 ? 'font-semibold text-foreground' : ''}
-				>
-					{item.label}
-				</Breadcrumb.Link>
+				{#if idx !== items.length - 1}
+					<Breadcrumb.Link href={item.href}>
+						{item.label}
+					</Breadcrumb.Link>
+				{:else}
+					<span class="font-semibold text-foreground">{item.label}</span>
+				{/if}
 			</Breadcrumb.Item>
 			{#if idx !== items.length - 1}
 				<Breadcrumb.Separator />
@@ -43,9 +44,3 @@
 		{/each}
 	</Breadcrumb.List>
 </Breadcrumb.Root>
-
-<style>
-	:global(.text-primary) {
-		color: var(--primary);
-	}
-</style>

@@ -92,7 +92,7 @@
 								description: 'This is a peer-to-peer room that only supports 2 users.'
 							});
 
-							goto('/video/peer-to-peer');
+							goto('/webrtc/video/peer-to-peer');
 							return;
 						}
 
@@ -191,7 +191,7 @@
 
 	async function endCall() {
 		await cleanup();
-		goto('/video/peer-to-peer?reset=' + Date.now());
+		goto('/webrtc/video/peer-to-peer?reset=' + Date.now());
 	}
 
 	function copyChannel() {

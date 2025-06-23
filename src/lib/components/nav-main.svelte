@@ -31,20 +31,39 @@
 					<Sidebar.MenuItem {...props}>
 						<Collapsible.Trigger>
 							{#snippet child({ props })}
-								<Sidebar.MenuButton {...props}>
-									{#snippet tooltipContent()}
-										{mainItem.title}
-									{/snippet}
-									{#if mainItem.icon}
-										<mainItem.icon />
-									{/if}
-									<span>{mainItem.title}</span>
-									{#if mainItem.items}
-										<ChevronRight
-											class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
-										/>
-									{/if}
-								</Sidebar.MenuButton>
+								{#if mainItem.url}
+									<a href={mainItem.url}>
+										<Sidebar.MenuButton {...props}>
+											{#snippet tooltipContent()}
+												{mainItem.title}
+											{/snippet}
+											{#if mainItem.icon}
+												<mainItem.icon />
+											{/if}
+											<span>{mainItem.title}</span>
+											{#if mainItem.items}
+												<ChevronRight
+													class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+												/>
+											{/if}
+										</Sidebar.MenuButton>
+									</a>
+								{:else}
+									<Sidebar.MenuButton {...props}>
+										{#snippet tooltipContent()}
+											{mainItem.title}
+										{/snippet}
+										{#if mainItem.icon}
+											<mainItem.icon />
+										{/if}
+										<span>{mainItem.title}</span>
+										{#if mainItem.items}
+											<ChevronRight
+												class="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+											/>
+										{/if}
+									</Sidebar.MenuButton>
+								{/if}
 							{/snippet}
 						</Collapsible.Trigger>
 						<Collapsible.Content>

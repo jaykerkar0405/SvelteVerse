@@ -2,12 +2,12 @@ import { test, expect } from '@playwright/test';
 
 test.describe('AV Peer-to-Peer', () => {
   test('Redirects to auth if not logged in', async ({ page }) => {
-    await page.goto('/av/peer-to-peer');
+    await page.goto('/webrtc/av/peer-to-peer');
     await expect(page).toHaveURL(/auth/);
   });
 
   test('Join form and validation (requires login)', async ({ page }) => {
-    await page.goto('/av/peer-to-peer');
+    await page.goto('/webrtc/av/peer-to-peer');
     if ((await page.url()).includes('/auth')) return;
     await expect(page.getByRole('textbox')).toBeVisible();
     await expect(page.getByRole('button', { name: /join/i })).toBeVisible();
