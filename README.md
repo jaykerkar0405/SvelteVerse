@@ -12,6 +12,8 @@ A simple and growing collection of plug-and-play SvelteKit components and integr
   - Peer to Peer
 - 🎥 **Video Room**
   - Peer to Peer
+- 🎧🎥 **AV Room**
+  - Peer to Peer
 
 > More coming soon...
 
