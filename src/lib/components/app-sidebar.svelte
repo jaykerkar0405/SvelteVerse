@@ -3,7 +3,7 @@
 	import NavMain from '$lib/components/nav-main.svelte';
 	import NavUser from '$lib/components/nav-user.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar';
-	import { Mic, MonitorSpeaker, Video } from 'lucide-svelte';
+	import { Mic, MonitorSpeaker, Utensils, Video } from 'lucide-svelte';
 
 	let {
 		ref = $bindable(null),
@@ -21,7 +21,7 @@
 					items: [
 						{
 							title: 'Peer to Peer',
-							url: '/audio/peer-to-peer'
+							url: '/webrtc/audio/peer-to-peer'
 						}
 					]
 				},
@@ -31,7 +31,7 @@
 					items: [
 						{
 							title: 'Peer to Peer',
-							url: '/video/peer-to-peer'
+							url: '/webrtc/video/peer-to-peer'
 						}
 					]
 				},
@@ -41,9 +41,19 @@
 					items: [
 						{
 							title: 'Peer to Peer',
-							url: '/av/peer-to-peer'
+							url: '/webrtc/av/peer-to-peer'
 						}
 					]
+				}
+			]
+		},
+		{
+			label: 'Health',
+			items: [
+				{
+					icon: Utensils,
+					title: 'Macro Tracking',
+					url: '/health/macro-tracking'
 				}
 			]
 		}
