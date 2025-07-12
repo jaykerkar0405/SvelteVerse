@@ -1,15 +1,4 @@
 <script lang="ts">
-	import {
-		User,
-		Mail,
-		Watch,
-		QrCode,
-		Unlink,
-		RefreshCw,
-		Smartphone,
-		CheckCircle,
-		AlertCircle
-	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { fade, fly } from 'svelte/transition';
@@ -20,7 +9,10 @@
 	import { createClient } from '@supabase/supabase-js';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import QrScanner from '$lib/components/qr-scanner.svelte';
+	import WatchDisplay from '$lib/components/watch-display.svelte';
+	import type { Watch as WatchType } from '$lib/types/watch-connect';
 	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+	import { User, Mail, QrCode, RefreshCw, CheckCircle, AlertCircle } from 'lucide-svelte';
 
 	const auth = useAuth();
 	const { user, isLoading } = $derived($auth);
@@ -37,7 +29,7 @@
 	let syncCompleted = $state(false);
 	let unlinkingWatch = $state(false);
 	let checkingWatchLink = $state(false);
-	let watchData = $state<Watch | null>(null);
+	let watchData = $state<WatchType | null>(null);
 
 	const showContent = $derived(!!user && hasChecked && !checkingUser);
 	const showSkeletonLoader = $derived(isLoading || (checkingUser && !hasChecked));
@@ -288,98 +280,7 @@
 								onCancel={() => (showQrScanner = false)}
 							/>
 						{:else if userExists && watchLinked && watchData}
-							<div
-								class="space-y-6"
-								out:fade={{ duration: 200 }}
-								in:fly={{ y: 20, duration: 400, delay: 200 }}
-							>
-								<div class="text-center">
-									<div class="mb-4 flex justify-center">
-										<div class="rounded-full bg-green-500/10 p-3 ring-1 ring-green-500/20">
-											<Watch class="size-6 text-green-600" />
-										</div>
-									</div>
-									<h1 class="text-3xl font-bold tracking-tight text-foreground">
-										Watch Connected!
-									</h1>
-									<p class="mt-2 text-sm text-muted-foreground">
-										Your smartwatch is linked to your account
-									</p>
-								</div>
-
-								<div class="space-y-4">
-									<div class="rounded-lg border border-border bg-card/50 p-4 backdrop-blur-sm">
-										<div class="flex items-center gap-3">
-											<div class="rounded-lg bg-primary/10 p-2">
-												<Watch class="size-5 text-primary" />
-											</div>
-											<div class="min-w-0 flex-1">
-												<div class="mb-1 flex items-center gap-2">
-													<Smartphone class="size-4 text-muted-foreground" />
-													<p class="text-sm font-medium text-foreground">
-														{watchData.brand}
-														{watchData.model}
-													</p>
-												</div>
-												<div class="flex items-center gap-2 text-xs text-muted-foreground">
-													<span>Android ID: {watchData.android_id.slice(0, 8)}...</span>
-													<span>•</span>
-													<span>{watchData.screen_shape} screen</span>
-												</div>
-											</div>
-										</div>
-									</div>
-
-									<div
-										class="flex items-center space-x-3 rounded-lg border border-border bg-card/50 p-4 backdrop-blur-sm"
-									>
-										<div class="flex-shrink-0">
-											<Avatar.Root class="size-12 rounded-lg ring-1 ring-border">
-												{#if user?.image}
-													<Avatar.Image src={user.image} alt={user?.name ?? user.email} />
-												{:else}
-													<Avatar.Fallback
-														class="rounded-lg bg-primary/10 font-medium text-primary"
-													>
-														{user?.name?.[0]?.toUpperCase() ?? user?.email[0].toUpperCase()}
-													</Avatar.Fallback>
-												{/if}
-											</Avatar.Root>
-										</div>
-										<div class="min-w-0 flex-1">
-											<div class="flex items-center gap-2">
-												<User class="size-4 text-muted-foreground" />
-												<p class="truncate text-sm font-medium text-foreground">
-													{user?.name || user?.email.split('@')[0]}
-												</p>
-											</div>
-											<div class="mt-1 flex items-center gap-2">
-												<Mail class="size-4 text-muted-foreground" />
-												<p class="truncate text-sm text-muted-foreground">
-													{user?.email}
-												</p>
-											</div>
-										</div>
-									</div>
-
-									<Button
-										variant="outline"
-										onclick={unlinkWatch}
-										disabled={unlinkingWatch}
-										class="h-11 w-full rounded-md"
-									>
-										{#if unlinkingWatch}
-											<div
-												class="mr-2 size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-											></div>
-											Unlinking...
-										{:else}
-											<Unlink class="mr-2 size-4" />
-											Unlink Watch
-										{/if}
-									</Button>
-								</div>
-							</div>
+							<WatchDisplay {watchData} onUnlink={unlinkWatch} {unlinkingWatch} />
 						{:else if userExists && !watchLinked}
 							<div
 								class="space-y-6"
