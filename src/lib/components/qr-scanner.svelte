@@ -1,34 +1,52 @@
 <script lang="ts">
 	import {
 		X,
+		Zap,
 		QrCode,
 		Camera,
 		CameraOff,
+		Flashlight,
 		ChevronDown,
 		AlertCircle,
-		CheckCircle2
+		CheckCircle2,
+		FlashlightOff
 	} from 'lucide-svelte';
-	import jsQR from 'jsqr';
+	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { Button } from '$lib/components/ui/button';
-	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	import { BarqodeStream, type DetectedBarcode } from 'barqode';
 
-	const dispatch = createEventDispatcher();
-	let { linkingWatch = false }: { linkingWatch: boolean } = $props();
+	let {
+		onScan,
+		onCancel,
+		linkingWatch = false
+	}: {
+		onCancel: () => void;
+		linkingWatch: boolean;
+		onScan: (data: string) => void;
+	} = $props();
 
 	let error = $state('');
 	let detectedQRCode = $state('');
 	let scanSuccess = $state(false);
+	let cameraLoading = $state(true);
+	let torchEnabled = $state(false);
+	let streamPaused = $state(false);
+	let torchSupported = $state(false);
 	let scanningActive = $state(false);
+	let isAutoFocusing = $state(false);
 	let permissionDenied = $state(false);
+	let focusBoostActive = $state(false);
+	let cameraInitialized = $state(false);
 	let showCameraSelector = $state(false);
 	let selectedCameraId = $state<string>('');
-	let scanInterval: ReturnType<typeof setInterval>;
 	let availableCameras = $state<MediaDeviceInfo[]>([]);
 
-	let stream = $state<MediaStream | null>(null);
-	let videoElement = $state<HTMLVideoElement | undefined>(undefined);
-	let canvasElement = $state<HTMLCanvasElement | undefined>(undefined);
+	let cameraConstraints = $state<MediaTrackConstraints>({
+		facingMode: 'environment',
+		width: { ideal: 1280, min: 640 },
+		height: { ideal: 720, min: 480 }
+	});
 
 	const getCameraDevices = async () => {
 		try {
@@ -39,143 +57,73 @@
 				const backCamera = availableCameras.find(
 					(camera) =>
 						camera.label.toLowerCase().includes('back') ||
-						camera.label.toLowerCase().includes('environment')
+						camera.label.toLowerCase().includes('environment') ||
+						camera.label.toLowerCase().includes('rear')
 				);
+
 				selectedCameraId = backCamera?.deviceId || availableCameras[0].deviceId;
+				updateCameraConstraints();
 			}
 		} catch (err) {
 			console.error('Error getting camera devices:', err);
 		}
 	};
 
-	const startCamera = async () => {
-		try {
-			error = '';
-			permissionDenied = false;
-
-			await getCameraDevices();
-
-			let constraints: MediaStreamConstraints = {
-				video: selectedCameraId
-					? { deviceId: selectedCameraId }
-					: { facingMode: { ideal: 'environment' } }
+	const updateCameraConstraints = () => {
+		if (selectedCameraId) {
+			cameraConstraints = {
+				deviceId: selectedCameraId,
+				width: { ideal: 1280, min: 640 },
+				height: { ideal: 720, min: 480 }
 			};
-
-			try {
-				stream = await navigator.mediaDevices.getUserMedia(constraints);
-			} catch (basicError) {
-				console.warn('Selected camera failed, retrying with environment facing mode:', basicError);
-				constraints = {
-					video: {
-						facingMode: { ideal: 'environment' }
-					}
-				};
-				stream = await navigator.mediaDevices.getUserMedia(constraints);
-			}
-
-			if (videoElement && stream) {
-				videoElement.srcObject = stream;
-
-				const handleVideoReady = async () => {
-					try {
-						if (videoElement) {
-							await videoElement.play();
-							startScanning();
-						}
-					} catch (playError) {
-						error = 'Failed to play camera stream. Please try again.';
-					}
-				};
-
-				videoElement.oncanplay = handleVideoReady;
-				videoElement.onloadedmetadata = handleVideoReady;
-
-				videoElement.onerror = () => {
-					error = 'Failed to load video stream.';
-				};
-			}
-		} catch (err: unknown) {
-			console.error('Error accessing camera:', err);
-
-			if (err instanceof DOMException) {
-				if (err.name === 'NotAllowedError') {
-					permissionDenied = true;
-					error = 'Camera access denied. Please enable camera permissions and refresh the page.';
-				} else if (err.name === 'NotFoundError') {
-					error = 'No camera found on this device.';
-				} else if (err.name === 'NotSupportedError') {
-					error = 'Camera not supported on this device.';
-				} else if (err.name === 'OverconstrainedError') {
-					error = 'Camera constraints not supported. Please try with a different device.';
-				} else {
-					error = 'Failed to access camera. Please try again.';
-				}
-			} else {
-				error = 'An unknown error occurred while accessing the camera.';
-			}
+		} else {
+			cameraConstraints = {
+				facingMode: 'environment',
+				width: { ideal: 1280, min: 640 },
+				height: { ideal: 720, min: 480 }
+			};
 		}
-	};
 
-	const stopCamera = () => {
-		if (stream) {
-			stream.getTracks().forEach((track) => track.stop());
-			stream = null;
-		}
-		stopScanning();
+		cameraInitialized = false;
 	};
 
 	const switchCamera = async (cameraId: string) => {
 		selectedCameraId = cameraId;
 		showCameraSelector = false;
-		stopCamera();
-		await startCamera();
-	};
+		updateCameraConstraints();
+		cameraLoading = true;
+		streamPaused = true;
 
-	const startScanning = () => {
-		if (scanningActive) return;
-
-		scanningActive = true;
-		scanInterval = setInterval(() => {
-			if (videoElement && canvasElement && !linkingWatch && !scanSuccess) {
-				captureAndAnalyze();
-			}
+		setTimeout(() => {
+			streamPaused = false;
 		}, 100);
 	};
 
-	const stopScanning = () => {
-		if (scanInterval) {
-			clearInterval(scanInterval);
-		}
-		scanningActive = false;
-	};
-
-	const captureAndAnalyze = () => {
-		if (!videoElement || !canvasElement) return;
-
-		const canvas = canvasElement;
-		const context = canvas.getContext('2d');
-
-		if (!context) return;
-
-		canvas.width = videoElement.videoWidth;
-		canvas.height = videoElement.videoHeight;
-
-		context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-
-		const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-		const qrCodeData = detectQRCode(imageData);
-
-		if (qrCodeData) {
-			handleQRCodeDetected(qrCodeData);
+	const toggleTorch = () => {
+		if (torchSupported) {
+			torchEnabled = !torchEnabled;
 		}
 	};
 
-	const detectQRCode = (imageData: ImageData): string | null => {
-		const code = jsQR(imageData.data, imageData.width, imageData.height, {
-			inversionAttempts: 'dontInvert'
-		});
+	const performAutoFocus = async () => {
+		if (!cameraInitialized || scanSuccess || linkingWatch || isAutoFocusing) return;
 
-		return code ? code.data : null;
+		isAutoFocusing = true;
+		focusBoostActive = true;
+
+		try {
+			streamPaused = true;
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			streamPaused = false;
+
+			setTimeout(() => {
+				focusBoostActive = false;
+				isAutoFocusing = false;
+			}, 800);
+		} catch (err) {
+			isAutoFocusing = false;
+			focusBoostActive = false;
+		}
 	};
 
 	const validateAndroidId = (androidId: string): boolean => {
@@ -183,21 +131,104 @@
 		return androidIdPattern.test(androidId);
 	};
 
-	const handleQRCodeDetected = (data: string) => {
-		if (validateAndroidId(data)) {
-			detectedQRCode = data;
+	const handleQRCodeDetected = (detectedCodes: DetectedBarcode[]) => {
+		if (linkingWatch || scanSuccess) return;
+
+		const validCodes = detectedCodes.filter((code) => {
+			const value = code.rawValue.trim();
+			return validateAndroidId(value) || /^[a-fA-F0-9]{16}$/i.test(value);
+		});
+
+		if (validCodes.length > 0) {
+			const firstValidCode = validCodes[0];
+			detectedQRCode = firstValidCode.rawValue;
+
 			scanSuccess = true;
-			stopScanning();
+			streamPaused = true;
+			scanningActive = false;
 
 			setTimeout(() => {
-				dispatch('scan', data);
+				onScan(firstValidCode.rawValue);
 			}, 500);
 		}
 	};
 
+	const trackDetectedCodes = (detectedCodes: DetectedBarcode[], ctx: CanvasRenderingContext2D) => {
+		for (const detectedCode of detectedCodes) {
+			const [firstPoint, ...otherPoints] = detectedCode.cornerPoints;
+
+			ctx.strokeStyle = scanSuccess ? '#10b981' : '#3b82f6';
+			ctx.lineWidth = 4;
+			ctx.shadowColor = scanSuccess ? '#10b981' : '#3b82f6';
+			ctx.shadowBlur = 8;
+
+			ctx.beginPath();
+			ctx.moveTo(firstPoint.x, firstPoint.y);
+			for (const { x, y } of otherPoints) {
+				ctx.lineTo(x, y);
+			}
+			ctx.lineTo(firstPoint.x, firstPoint.y);
+			ctx.closePath();
+			ctx.stroke();
+
+			if (!scanSuccess) {
+				ctx.strokeStyle = '#ffffff';
+				ctx.lineWidth = 2;
+				ctx.shadowBlur = 4;
+				ctx.stroke();
+			}
+
+			ctx.shadowBlur = 0;
+		}
+	};
+
+	const onCameraReady = async (capabilities: MediaTrackCapabilities) => {
+		cameraLoading = false;
+		scanningActive = true;
+		error = '';
+		permissionDenied = false;
+		torchSupported = 'torch' in capabilities;
+		cameraInitialized = true;
+
+		await getCameraDevices();
+	};
+
+	const onCameraError = (err: Error) => {
+		cameraLoading = false;
+		scanningActive = false;
+		cameraInitialized = false;
+
+		if (err.name === 'NotAllowedError') {
+			permissionDenied = true;
+			error = 'Camera access denied. Please enable camera permissions and refresh the page.';
+		} else if (err.name === 'NotFoundError') {
+			error = 'No camera found on this device.';
+		} else if (err.name === 'NotSupportedError') {
+			error = 'Camera not supported on this device.';
+		} else if (err.name === 'OverconstrainedError') {
+			error = 'Camera constraints not supported. Trying with basic settings...';
+			cameraConstraints = { facingMode: 'environment' };
+		} else {
+			error = 'Failed to access camera. Please try again.';
+		}
+	};
+
+	const onCameraOff = () => {
+		cameraLoading = true;
+		scanningActive = false;
+		cameraInitialized = false;
+	};
+
 	const handleCancel = () => {
-		stopCamera();
-		dispatch('cancel');
+		scanningActive = false;
+		streamPaused = true;
+		cameraLoading = false;
+		error = '';
+		scanSuccess = false;
+		detectedQRCode = '';
+		cameraInitialized = false;
+
+		onCancel();
 	};
 
 	const getCameraLabel = (camera: MediaDeviceInfo): string => {
@@ -208,12 +239,22 @@
 		return `Camera ${index + 1}`;
 	};
 
-	onMount(() => {
-		startCamera();
-	});
+	const retryCamera = () => {
+		error = '';
+		permissionDenied = false;
+		cameraLoading = true;
+		cameraInitialized = false;
+		updateCameraConstraints();
+	};
 
-	onDestroy(() => {
-		stopCamera();
+	const triggerFocusBoost = () => {
+		if (!isAutoFocusing) {
+			performAutoFocus();
+		}
+	};
+
+	onMount(() => {
+		getCameraDevices();
 	});
 </script>
 
@@ -241,44 +282,55 @@
 	</div>
 
 	<div class="space-y-4">
-		{#if availableCameras.length > 1 && !error}
-			<div class="relative">
-				<Button
-					variant="outline"
-					class="w-full justify-between"
-					onclick={() => (showCameraSelector = !showCameraSelector)}
-				>
-					<div class="flex items-center gap-2">
-						<Camera class="size-4" />
-						<span class="text-sm">
-							{getCameraLabel(
-								availableCameras.find((c) => c.deviceId === selectedCameraId) || availableCameras[0]
-							)}
-						</span>
-					</div>
-					<ChevronDown class="size-4" />
-				</Button>
-
-				{#if showCameraSelector}
-					<div
-						class="absolute left-0 right-0 top-full z-50 mt-2 rounded-lg border border-border bg-card shadow-lg"
+		<div class="flex flex-wrap justify-center gap-2">
+			{#if availableCameras.length > 1 && !error}
+				<div class="relative">
+					<Button
+						size="sm"
+						variant="outline"
+						class="justify-between"
+						onclick={() => (showCameraSelector = !showCameraSelector)}
 					>
-						{#each availableCameras as camera}
-							<button
-								onclick={() => switchCamera(camera.deviceId)}
-								class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted"
-							>
-								<Camera class="size-4" />
-								<span class="text-sm">{getCameraLabel(camera)}</span>
-								{#if camera.deviceId === selectedCameraId}
-									<CheckCircle2 class="ml-auto size-4 text-primary" />
-								{/if}
-							</button>
-						{/each}
-					</div>
-				{/if}
-			</div>
-		{/if}
+						<div class="flex items-center gap-2">
+							<Camera class="size-4" />
+							<span class="text-sm">Switch Camera</span>
+						</div>
+						<ChevronDown class="size-4" />
+					</Button>
+
+					{#if showCameraSelector}
+						<div
+							class="absolute left-0 right-0 top-full z-50 mt-2 min-w-48 rounded-lg border border-border bg-card shadow-lg"
+						>
+							{#each availableCameras as camera}
+								<button
+									onclick={() => switchCamera(camera.deviceId)}
+									class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted"
+								>
+									<Camera class="size-4" />
+									<span class="text-sm">{getCameraLabel(camera)}</span>
+									{#if camera.deviceId === selectedCameraId}
+										<CheckCircle2 class="ml-auto size-4 text-primary" />
+									{/if}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			{#if torchSupported && !error}
+				<Button variant="outline" size="sm" onclick={toggleTorch} class="flex items-center gap-2">
+					{#if torchEnabled}
+						<FlashlightOff class="size-4" />
+						<span class="hidden sm:inline">Flash Off</span>
+					{:else}
+						<Flashlight class="size-4" />
+						<span class="hidden sm:inline">Flash On</span>
+					{/if}
+				</Button>
+			{/if}
+		</div>
 
 		<div class="relative">
 			<div
@@ -310,7 +362,7 @@
 								</div>
 							</div>
 						{:else}
-							<Button onclick={startCamera} variant="default" size="sm" class="mt-2">
+							<Button onclick={retryCamera} variant="default" size="sm" class="mt-2">
 								<Camera class="mr-2 size-4" />
 								Try Again
 							</Button>
@@ -318,64 +370,128 @@
 					</div>
 				{:else}
 					<div class="relative h-full">
-						<video
-							muted
-							autoplay
-							playsinline
-							bind:this={videoElement}
-							class="h-full w-full object-cover"
-						></video>
+						<BarqodeStream
+							{onCameraOff}
+							torch={torchEnabled}
+							formats={['qr_code']}
+							paused={streamPaused}
+							onError={onCameraError}
+							onCameraOn={onCameraReady}
+							track={trackDetectedCodes}
+							constraints={cameraConstraints}
+							onDetect={handleQRCodeDetected}
+						>
+							{#if cameraLoading}
+								<div class="absolute inset-0 flex items-center justify-center bg-muted">
+									<div class="text-center">
+										<div class="mb-4 flex justify-center">
+											<div
+												class="size-12 animate-spin rounded-full border-4 border-primary border-t-transparent"
+											></div>
+										</div>
+										<p class="text-sm text-muted-foreground">Loading camera...</p>
+									</div>
+								</div>
+							{/if}
+						</BarqodeStream>
 
 						<div class="absolute inset-0 flex items-center justify-center p-4">
-							<div class="relative">
-								<div
-									class="size-40 rounded-xl border-4 border-primary bg-transparent shadow-2xl sm:size-48 md:size-56 lg:size-64"
-								>
+							<button
+								onclick={triggerFocusBoost}
+								disabled={scanSuccess || linkingWatch}
+								class="relative transition-transform active:scale-95"
+							>
+								<div class="relative size-48 md:size-56 lg:size-64">
+									<div
+										class="absolute -left-1 -top-1 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-white shadow-lg {focusBoostActive
+											? 'animate-pulse'
+											: ''}"
+									></div>
+									<div
+										class="absolute -right-1 -top-1 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-white shadow-lg {focusBoostActive
+											? 'animate-pulse'
+											: ''}"
+									></div>
+									<div
+										class="absolute -bottom-1 -left-1 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-white shadow-lg {focusBoostActive
+											? 'animate-pulse'
+											: ''}"
+									></div>
+									<div
+										class="absolute -bottom-1 -right-1 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-white shadow-lg {focusBoostActive
+											? 'animate-pulse'
+											: ''}"
+									></div>
+
+									<div
+										class="absolute inset-4 rounded-lg border-2 border-dashed border-white/50 {focusBoostActive
+											? 'animate-pulse border-primary'
+											: ''}"
+									></div>
+
+									{#if !scanSuccess && !linkingWatch && cameraInitialized}
+										<div class="absolute inset-0 flex items-center justify-center">
+											<div class="text-center">
+												<div class="mb-2 flex justify-center">
+													<div class="rounded-full bg-white/20 p-2 backdrop-blur-sm">
+														<Zap class="size-4 text-white" />
+													</div>
+												</div>
+												<p class="text-xs font-medium text-white/80">Tap to focus</p>
+											</div>
+										</div>
+									{/if}
+
 									{#if scanSuccess}
 										<div
-											class="absolute inset-0 flex items-center justify-center rounded-xl border-2 border-accent bg-accent/30 backdrop-blur-sm"
+											class="absolute inset-0 flex items-center justify-center rounded-xl border-2 border-green-400 bg-green-500/20 backdrop-blur-sm"
 										>
-											<CheckCircle2 class="size-12 text-accent-foreground sm:size-16" />
+											<CheckCircle2 class="size-16 text-green-400 drop-shadow-lg" />
 										</div>
 									{/if}
 								</div>
-							</div>
+							</button>
 						</div>
+
+						{#if !error}
+							<div class="absolute left-1/2 top-2 z-10 -translate-x-1/2 transform">
+								{#if scanSuccess}
+									<div
+										class="flex items-center gap-2 rounded-full bg-green-500/95 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-sm"
+									>
+										<CheckCircle2 class="size-3" />
+										<span>Detected!</span>
+									</div>
+								{:else if linkingWatch}
+									<div
+										class="flex items-center gap-2 rounded-full bg-primary/95 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-sm"
+									>
+										<div
+											class="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white"
+										></div>
+										<span>Linking...</span>
+									</div>
+								{:else if isAutoFocusing}
+									<div
+										class="flex items-center gap-2 rounded-full bg-primary/95 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-sm"
+									>
+										<Zap class="size-3 animate-pulse" />
+										<span>Focusing...</span>
+									</div>
+								{:else if scanningActive}
+									<div
+										class="flex items-center gap-2 rounded-full bg-primary/95 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-sm"
+									>
+										<div class="size-2 animate-pulse rounded-full bg-white"></div>
+										<span>Scanning...</span>
+									</div>
+								{/if}
+							</div>
+						{/if}
 					</div>
 				{/if}
 			</div>
-
-			{#if !error}
-				<div class="absolute bottom-4 left-2 right-2 sm:bottom-auto sm:left-4 sm:right-4 sm:top-4">
-					{#if scanSuccess}
-						<div
-							class="flex items-center justify-center gap-2 rounded-full border border-accent-foreground/20 bg-accent px-3 py-2 text-xs text-accent-foreground shadow-lg sm:px-4 sm:text-sm"
-						>
-							<CheckCircle2 class="size-3 sm:size-4" />
-							<span class="truncate">QR Code: {detectedQRCode.slice(0, 12)}...</span>
-						</div>
-					{:else if linkingWatch}
-						<div
-							class="flex items-center justify-center gap-2 rounded-full border border-secondary-foreground/20 bg-secondary px-3 py-2 text-xs text-secondary-foreground shadow-lg sm:px-4 sm:text-sm"
-						>
-							<div
-								class="size-3 animate-spin rounded-full border-2 border-secondary-foreground/30 border-t-secondary-foreground sm:size-4"
-							></div>
-							Linking watch...
-						</div>
-					{:else if scanningActive}
-						<div
-							class="flex items-center justify-center gap-2 rounded-full border border-primary-foreground/20 bg-primary px-3 py-2 text-xs text-primary-foreground shadow-lg sm:px-4 sm:text-sm"
-						>
-							<div class="size-2 animate-pulse rounded-full bg-primary-foreground"></div>
-							Scanning...
-						</div>
-					{/if}
-				</div>
-			{/if}
 		</div>
-
-		<canvas bind:this={canvasElement} class="hidden"></canvas>
 	</div>
 
 	<div class="flex gap-3 px-4 sm:px-0">
@@ -385,51 +501,30 @@
 		</Button>
 	</div>
 
-	<div class="mx-4 rounded-xl border border-border bg-card shadow-sm sm:mx-0">
+	<div class="mx-4 rounded-xl border border-border bg-card shadow-sm sm:mx-0 md:mx-4 lg:mx-0">
 		<div class="border-b border-border bg-muted/50 px-4 py-3 sm:px-6 sm:py-4">
 			<h3 class="flex items-center gap-2 text-sm font-semibold text-foreground">
 				<QrCode class="size-4" />
-				Setup Instructions
+				Quick Tips
 			</h3>
 		</div>
 		<div class="p-4 sm:p-6">
-			<div class="space-y-3 sm:space-y-4">
-				<div class="flex items-start gap-3">
-					<div
-						class="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
-					>
-						1
-					</div>
-					<div class="min-w-0">
-						<p class="text-sm font-medium text-foreground">Open VitalSync App</p>
-						<p class="text-xs text-muted-foreground">Launch the VitalSync app on your smartwatch</p>
-					</div>
+			<div class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+				<div class="flex items-center gap-2">
+					<div class="size-2 rounded-full bg-muted-foreground"></div>
+					<span class="text-muted-foreground">Hold phone 6-12 inches away</span>
 				</div>
-				<div class="flex items-start gap-3">
-					<div
-						class="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
-					>
-						2
-					</div>
-					<div class="min-w-0">
-						<p class="text-sm font-medium text-foreground">Navigate to QR Code</p>
-						<p class="text-xs text-muted-foreground">
-							The QR code will appear on your watch screen automatically
-						</p>
-					</div>
+				<div class="flex items-center gap-2">
+					<div class="size-2 rounded-full bg-muted-foreground"></div>
+					<span class="text-muted-foreground">Tap the frame to focus</span>
 				</div>
-				<div class="flex items-start gap-3">
-					<div
-						class="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
-					>
-						3
-					</div>
-					<div class="min-w-0">
-						<p class="text-sm font-medium text-foreground">Scan with Camera</p>
-						<p class="text-xs text-muted-foreground">
-							Point your phone's camera at the QR code to establish connection
-						</p>
-					</div>
+				<div class="flex items-center gap-2">
+					<div class="size-2 rounded-full bg-muted-foreground"></div>
+					<span class="text-muted-foreground">Use flash in low light</span>
+				</div>
+				<div class="flex items-center gap-2">
+					<div class="size-2 rounded-full bg-muted-foreground"></div>
+					<span class="text-muted-foreground">Keep phone steady</span>
 				</div>
 			</div>
 		</div>
