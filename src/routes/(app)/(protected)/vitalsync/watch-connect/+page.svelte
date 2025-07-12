@@ -284,8 +284,8 @@
 						{#if showQrScanner}
 							<QrScanner
 								{linkingWatch}
-								on:scan={(e) => handleQrScan(e.detail)}
-								on:cancel={() => (showQrScanner = false)}
+								onScan={(data) => handleQrScan(data)}
+								onCancel={() => (showQrScanner = false)}
 							/>
 						{:else if userExists && watchLinked && watchData}
 							<div
