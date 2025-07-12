@@ -6,15 +6,24 @@
 		CameraOff,
 		ChevronDown,
 		AlertCircle,
-		CheckCircle2
+		CheckCircle2,
+		Flashlight,
+		FlashlightOff
 	} from 'lucide-svelte';
-	import jsQR from 'jsqr';
+	import { BarqodeStream, type DetectedBarcode } from 'barqode';
 	import { fly } from 'svelte/transition';
 	import { Button } from '$lib/components/ui/button';
-	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	import { onMount } from 'svelte';
 
-	const dispatch = createEventDispatcher();
-	let { linkingWatch = false }: { linkingWatch: boolean } = $props();
+	let {
+		linkingWatch = false,
+		onScan,
+		onCancel
+	}: {
+		linkingWatch: boolean;
+		onScan: (data: string) => void;
+		onCancel: () => void;
+	} = $props();
 
 	let error = $state('');
 	let detectedQRCode = $state('');
@@ -23,12 +32,16 @@
 	let permissionDenied = $state(false);
 	let showCameraSelector = $state(false);
 	let selectedCameraId = $state<string>('');
-	let scanInterval: ReturnType<typeof setInterval>;
 	let availableCameras = $state<MediaDeviceInfo[]>([]);
+	let cameraLoading = $state(true);
+	let torchEnabled = $state(false);
+	let torchSupported = $state(false);
+	let streamPaused = $state(false);
 
-	let stream = $state<MediaStream | null>(null);
-	let videoElement = $state<HTMLVideoElement | undefined>(undefined);
-	let canvasElement = $state<HTMLCanvasElement | undefined>(undefined);
+	// Camera constraints for Barqode
+	let cameraConstraints = $state<MediaTrackConstraints>({
+		facingMode: 'environment'
+	});
 
 	const getCameraDevices = async () => {
 		try {
@@ -42,140 +55,32 @@
 						camera.label.toLowerCase().includes('environment')
 				);
 				selectedCameraId = backCamera?.deviceId || availableCameras[0].deviceId;
+				updateCameraConstraints();
 			}
 		} catch (err) {
 			console.error('Error getting camera devices:', err);
 		}
 	};
 
-	const startCamera = async () => {
-		try {
-			error = '';
-			permissionDenied = false;
-
-			await getCameraDevices();
-
-			let constraints: MediaStreamConstraints = {
-				video: selectedCameraId
-					? { deviceId: selectedCameraId }
-					: { facingMode: { ideal: 'environment' } }
-			};
-
-			try {
-				stream = await navigator.mediaDevices.getUserMedia(constraints);
-			} catch (basicError) {
-				console.warn('Selected camera failed, retrying with environment facing mode:', basicError);
-				constraints = {
-					video: {
-						facingMode: { ideal: 'environment' }
-					}
-				};
-				stream = await navigator.mediaDevices.getUserMedia(constraints);
-			}
-
-			if (videoElement && stream) {
-				videoElement.srcObject = stream;
-
-				const handleVideoReady = async () => {
-					try {
-						if (videoElement) {
-							await videoElement.play();
-							startScanning();
-						}
-					} catch (playError) {
-						error = 'Failed to play camera stream. Please try again.';
-					}
-				};
-
-				videoElement.oncanplay = handleVideoReady;
-				videoElement.onloadedmetadata = handleVideoReady;
-
-				videoElement.onerror = () => {
-					error = 'Failed to load video stream.';
-				};
-			}
-		} catch (err: unknown) {
-			console.error('Error accessing camera:', err);
-
-			if (err instanceof DOMException) {
-				if (err.name === 'NotAllowedError') {
-					permissionDenied = true;
-					error = 'Camera access denied. Please enable camera permissions and refresh the page.';
-				} else if (err.name === 'NotFoundError') {
-					error = 'No camera found on this device.';
-				} else if (err.name === 'NotSupportedError') {
-					error = 'Camera not supported on this device.';
-				} else if (err.name === 'OverconstrainedError') {
-					error = 'Camera constraints not supported. Please try with a different device.';
-				} else {
-					error = 'Failed to access camera. Please try again.';
-				}
-			} else {
-				error = 'An unknown error occurred while accessing the camera.';
-			}
+	const updateCameraConstraints = () => {
+		if (selectedCameraId) {
+			cameraConstraints = { deviceId: selectedCameraId };
+		} else {
+			cameraConstraints = { facingMode: 'environment' };
 		}
-	};
-
-	const stopCamera = () => {
-		if (stream) {
-			stream.getTracks().forEach((track) => track.stop());
-			stream = null;
-		}
-		stopScanning();
 	};
 
 	const switchCamera = async (cameraId: string) => {
 		selectedCameraId = cameraId;
 		showCameraSelector = false;
-		stopCamera();
-		await startCamera();
+		updateCameraConstraints();
+		cameraLoading = true;
 	};
 
-	const startScanning = () => {
-		if (scanningActive) return;
-
-		scanningActive = true;
-		scanInterval = setInterval(() => {
-			if (videoElement && canvasElement && !linkingWatch && !scanSuccess) {
-				captureAndAnalyze();
-			}
-		}, 100);
-	};
-
-	const stopScanning = () => {
-		if (scanInterval) {
-			clearInterval(scanInterval);
+	const toggleTorch = () => {
+		if (torchSupported) {
+			torchEnabled = !torchEnabled;
 		}
-		scanningActive = false;
-	};
-
-	const captureAndAnalyze = () => {
-		if (!videoElement || !canvasElement) return;
-
-		const canvas = canvasElement;
-		const context = canvas.getContext('2d');
-
-		if (!context) return;
-
-		canvas.width = videoElement.videoWidth;
-		canvas.height = videoElement.videoHeight;
-
-		context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-
-		const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-		const qrCodeData = detectQRCode(imageData);
-
-		if (qrCodeData) {
-			handleQRCodeDetected(qrCodeData);
-		}
-	};
-
-	const detectQRCode = (imageData: ImageData): string | null => {
-		const code = jsQR(imageData.data, imageData.width, imageData.height, {
-			inversionAttempts: 'dontInvert'
-		});
-
-		return code ? code.data : null;
 	};
 
 	const validateAndroidId = (androidId: string): boolean => {
@@ -183,21 +88,95 @@
 		return androidIdPattern.test(androidId);
 	};
 
-	const handleQRCodeDetected = (data: string) => {
-		if (validateAndroidId(data)) {
-			detectedQRCode = data;
+	const handleQRCodeDetected = (detectedCodes: DetectedBarcode[]) => {
+		if (linkingWatch || scanSuccess) return;
+
+		const validCodes = detectedCodes.filter((code) => validateAndroidId(code.rawValue));
+
+		if (validCodes.length > 0) {
+			const firstValidCode = validCodes[0];
+			detectedQRCode = firstValidCode.rawValue;
 			scanSuccess = true;
-			stopScanning();
+			scanningActive = false;
+			streamPaused = true;
 
 			setTimeout(() => {
-				dispatch('scan', data);
+				// Call onScan with the raw value directly, not as an event
+				onScan(firstValidCode.rawValue);
 			}, 500);
 		}
 	};
 
+	const trackDetectedCodes = (detectedCodes: DetectedBarcode[], ctx: CanvasRenderingContext2D) => {
+		for (const detectedCode of detectedCodes) {
+			const [firstPoint, ...otherPoints] = detectedCode.cornerPoints;
+
+			// Draw a stylish border around detected QR codes
+			ctx.strokeStyle = scanSuccess ? '#10b981' : '#3b82f6';
+			ctx.lineWidth = 3;
+			ctx.shadowColor = scanSuccess ? '#10b981' : '#3b82f6';
+			ctx.shadowBlur = 10;
+
+			ctx.beginPath();
+			ctx.moveTo(firstPoint.x, firstPoint.y);
+			for (const { x, y } of otherPoints) {
+				ctx.lineTo(x, y);
+			}
+			ctx.lineTo(firstPoint.x, firstPoint.y);
+			ctx.closePath();
+			ctx.stroke();
+
+			// Reset shadow
+			ctx.shadowBlur = 0;
+		}
+	};
+
+	const onCameraReady = async (capabilities: MediaTrackCapabilities) => {
+		cameraLoading = false;
+		scanningActive = true;
+		error = '';
+		permissionDenied = false;
+		torchSupported = 'torch' in capabilities;
+
+		// Get available cameras after camera is ready
+		await getCameraDevices();
+	};
+
+	const onCameraError = (err: Error) => {
+		console.error('Camera error:', err);
+		cameraLoading = false;
+		scanningActive = false;
+
+		if (err.name === 'NotAllowedError') {
+			permissionDenied = true;
+			error = 'Camera access denied. Please enable camera permissions and refresh the page.';
+		} else if (err.name === 'NotFoundError') {
+			error = 'No camera found on this device.';
+		} else if (err.name === 'NotSupportedError') {
+			error = 'Camera not supported on this device.';
+		} else if (err.name === 'OverconstrainedError') {
+			error = 'Camera constraints not supported. Please try with a different device.';
+		} else {
+			error = 'Failed to access camera. Please try again.';
+		}
+	};
+
+	const onCameraOff = () => {
+		cameraLoading = true;
+		scanningActive = false;
+	};
+
 	const handleCancel = () => {
-		stopCamera();
-		dispatch('cancel');
+		// Clean up camera stream and reset states
+		scanningActive = false;
+		streamPaused = true;
+		cameraLoading = false;
+		error = '';
+		scanSuccess = false;
+		detectedQRCode = '';
+
+		// Call the parent's cancel handler
+		onCancel();
 	};
 
 	const getCameraLabel = (camera: MediaDeviceInfo): string => {
@@ -208,12 +187,16 @@
 		return `Camera ${index + 1}`;
 	};
 
-	onMount(() => {
-		startCamera();
-	});
+	const retryCamera = () => {
+		error = '';
+		permissionDenied = false;
+		cameraLoading = true;
+		// Force re-initialization by updating constraints
+		updateCameraConstraints();
+	};
 
-	onDestroy(() => {
-		stopCamera();
+	onMount(() => {
+		getCameraDevices();
 	});
 </script>
 
@@ -280,6 +263,20 @@
 			</div>
 		{/if}
 
+		{#if torchSupported && !error}
+			<div class="flex justify-center">
+				<Button variant="outline" size="sm" onclick={toggleTorch} class="flex items-center gap-2">
+					{#if torchEnabled}
+						<FlashlightOff class="size-4" />
+						Turn off flash
+					{:else}
+						<Flashlight class="size-4" />
+						Turn on flash
+					{/if}
+				</Button>
+			</div>
+		{/if}
+
 		<div class="relative">
 			<div
 				class="aspect-square overflow-hidden rounded-xl border-2 border-border bg-muted shadow-lg"
@@ -310,7 +307,7 @@
 								</div>
 							</div>
 						{:else}
-							<Button onclick={startCamera} variant="default" size="sm" class="mt-2">
+							<Button onclick={retryCamera} variant="default" size="sm" class="mt-2">
 								<Camera class="mr-2 size-4" />
 								Try Again
 							</Button>
@@ -318,64 +315,99 @@
 					</div>
 				{:else}
 					<div class="relative h-full">
-						<video
-							muted
-							autoplay
-							playsinline
-							bind:this={videoElement}
-							class="h-full w-full object-cover"
-						></video>
+						<BarqodeStream
+							constraints={cameraConstraints}
+							formats={['qr_code']}
+							paused={streamPaused}
+							torch={torchEnabled}
+							onCameraOn={onCameraReady}
+							{onCameraOff}
+							onError={onCameraError}
+							onDetect={handleQRCodeDetected}
+							track={trackDetectedCodes}
+						>
+							{#if cameraLoading}
+								<div class="absolute inset-0 flex items-center justify-center bg-muted">
+									<div class="text-center">
+										<div class="mb-4 flex justify-center">
+											<div
+												class="size-12 animate-spin rounded-full border-4 border-primary border-t-transparent"
+											></div>
+										</div>
+										<p class="text-sm text-muted-foreground">Loading camera...</p>
+									</div>
+								</div>
+							{/if}
+						</BarqodeStream>
 
-						<div class="absolute inset-0 flex items-center justify-center p-4">
+						<!-- Modern scanning overlay -->
+						<div class="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
 							<div class="relative">
-								<div
-									class="size-40 rounded-xl border-4 border-primary bg-transparent shadow-2xl sm:size-48 md:size-56 lg:size-64"
-								>
+								<!-- Main scanning frame -->
+								<div class="relative size-48 md:size-56 lg:size-64">
+									<!-- Animated corner indicators -->
+									<div
+										class="absolute -left-1 -top-1 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-white shadow-lg"
+									></div>
+									<div
+										class="absolute -right-1 -top-1 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-white shadow-lg"
+									></div>
+									<div
+										class="absolute -bottom-1 -left-1 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-white shadow-lg"
+									></div>
+									<div
+										class="absolute -bottom-1 -right-1 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-white shadow-lg"
+									></div>
+
+									<!-- Central scanning area -->
+									<div
+										class="absolute inset-4 rounded-lg border-2 border-dashed border-white/50"
+									></div>
+
 									{#if scanSuccess}
 										<div
-											class="absolute inset-0 flex items-center justify-center rounded-xl border-2 border-accent bg-accent/30 backdrop-blur-sm"
+											class="absolute inset-0 flex items-center justify-center rounded-xl border-2 border-green-400 bg-green-500/20 backdrop-blur-sm"
 										>
-											<CheckCircle2 class="size-12 text-accent-foreground sm:size-16" />
+											<CheckCircle2 class="size-16 text-green-400 drop-shadow-lg" />
 										</div>
 									{/if}
 								</div>
 							</div>
 						</div>
+
+						<!-- Compact status indicator -->
+						{#if !error}
+							<div class="absolute left-1/2 top-4 z-10 -translate-x-1/2 transform">
+								{#if scanSuccess}
+									<div
+										class="flex items-center gap-2 rounded-full bg-green-500/90 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-sm"
+									>
+										<CheckCircle2 class="size-3" />
+										<span>Detected</span>
+									</div>
+								{:else if linkingWatch}
+									<div
+										class="flex items-center gap-2 rounded-full bg-blue-500/90 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-sm"
+									>
+										<div
+											class="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white"
+										></div>
+										<span>Linking...</span>
+									</div>
+								{:else if scanningActive}
+									<div
+										class="flex items-center gap-2 rounded-full bg-primary/90 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur-sm"
+									>
+										<div class="size-2 animate-pulse rounded-full bg-white"></div>
+										<span>Scanning</span>
+									</div>
+								{/if}
+							</div>
+						{/if}
 					</div>
 				{/if}
 			</div>
-
-			{#if !error}
-				<div class="absolute bottom-4 left-2 right-2 sm:bottom-auto sm:left-4 sm:right-4 sm:top-4">
-					{#if scanSuccess}
-						<div
-							class="flex items-center justify-center gap-2 rounded-full border border-accent-foreground/20 bg-accent px-3 py-2 text-xs text-accent-foreground shadow-lg sm:px-4 sm:text-sm"
-						>
-							<CheckCircle2 class="size-3 sm:size-4" />
-							<span class="truncate">QR Code: {detectedQRCode.slice(0, 12)}...</span>
-						</div>
-					{:else if linkingWatch}
-						<div
-							class="flex items-center justify-center gap-2 rounded-full border border-secondary-foreground/20 bg-secondary px-3 py-2 text-xs text-secondary-foreground shadow-lg sm:px-4 sm:text-sm"
-						>
-							<div
-								class="size-3 animate-spin rounded-full border-2 border-secondary-foreground/30 border-t-secondary-foreground sm:size-4"
-							></div>
-							Linking watch...
-						</div>
-					{:else if scanningActive}
-						<div
-							class="flex items-center justify-center gap-2 rounded-full border border-primary-foreground/20 bg-primary px-3 py-2 text-xs text-primary-foreground shadow-lg sm:px-4 sm:text-sm"
-						>
-							<div class="size-2 animate-pulse rounded-full bg-primary-foreground"></div>
-							Scanning...
-						</div>
-					{/if}
-				</div>
-			{/if}
 		</div>
-
-		<canvas bind:this={canvasElement} class="hidden"></canvas>
 	</div>
 
 	<div class="flex gap-3 px-4 sm:px-0">
@@ -385,7 +417,7 @@
 		</Button>
 	</div>
 
-	<div class="mx-4 rounded-xl border border-border bg-card shadow-sm sm:mx-0">
+	<div class="mx-4 rounded-xl border border-border bg-card shadow-sm sm:mx-0 md:mx-4 lg:mx-0">
 		<div class="border-b border-border bg-muted/50 px-4 py-3 sm:px-6 sm:py-4">
 			<h3 class="flex items-center gap-2 text-sm font-semibold text-foreground">
 				<QrCode class="size-4" />
