@@ -3,7 +3,7 @@
 	import NavMain from '$lib/components/nav-main.svelte';
 	import NavUser from '$lib/components/nav-user.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar';
-	import { Mic, MonitorSpeaker, Utensils, Video } from 'lucide-svelte';
+	import { Mic, MonitorSpeaker, Video, Watch } from 'lucide-svelte';
 
 	let {
 		ref = $bindable(null),
@@ -44,6 +44,16 @@
 							url: '/webrtc/av/peer-to-peer'
 						}
 					]
+				}
+			]
+		},
+		{
+			label: 'VitalSync',
+			items: [
+				{
+					icon: Watch,
+					title: 'Watch Connect',
+					url: '/vitalsync/watch-connect'
 				}
 			]
 		}
