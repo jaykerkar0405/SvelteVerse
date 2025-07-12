@@ -1,9 +1,17 @@
 <script lang="ts">
+	import {
+		X,
+		QrCode,
+		Camera,
+		CameraOff,
+		ChevronDown,
+		AlertCircle,
+		CheckCircle2
+	} from 'lucide-svelte';
 	import jsQR from 'jsqr';
 	import { fly } from 'svelte/transition';
 	import { Button } from '$lib/components/ui/button';
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-	import { X, QrCode, AlertCircle, Camera, CameraOff, CheckCircle2 } from 'lucide-svelte';
 
 	const dispatch = createEventDispatcher();
 	let { linkingWatch = false }: { linkingWatch: boolean } = $props();
@@ -13,35 +21,55 @@
 	let scanSuccess = $state(false);
 	let scanningActive = $state(false);
 	let permissionDenied = $state(false);
+	let showCameraSelector = $state(false);
+	let selectedCameraId = $state<string>('');
 	let scanInterval: ReturnType<typeof setInterval>;
+	let availableCameras = $state<MediaDeviceInfo[]>([]);
 
 	let stream = $state<MediaStream | null>(null);
 	let videoElement = $state<HTMLVideoElement | undefined>(undefined);
 	let canvasElement = $state<HTMLCanvasElement | undefined>(undefined);
+
+	const getCameraDevices = async () => {
+		try {
+			const devices = await navigator.mediaDevices.enumerateDevices();
+			availableCameras = devices.filter((device) => device.kind === 'videoinput');
+
+			if (availableCameras.length > 0 && !selectedCameraId) {
+				const backCamera = availableCameras.find(
+					(camera) =>
+						camera.label.toLowerCase().includes('back') ||
+						camera.label.toLowerCase().includes('environment')
+				);
+				selectedCameraId = backCamera?.deviceId || availableCameras[0].deviceId;
+			}
+		} catch (err) {
+			console.error('Error getting camera devices:', err);
+		}
+	};
 
 	const startCamera = async () => {
 		try {
 			error = '';
 			permissionDenied = false;
 
+			await getCameraDevices();
+
 			let constraints: MediaStreamConstraints = {
-				video: true
+				video: selectedCameraId
+					? { deviceId: selectedCameraId }
+					: { facingMode: { ideal: 'environment' } }
 			};
 
 			try {
 				stream = await navigator.mediaDevices.getUserMedia(constraints);
 			} catch (basicError) {
-				console.warn(
-					'Basic constraints failed, retrying with environment facing mode:',
-					basicError
-				);
-
+				console.warn('Selected camera failed, retrying with environment facing mode:', basicError);
 				constraints = {
 					video: {
 						facingMode: { ideal: 'environment' }
 					}
 				};
-
 				stream = await navigator.mediaDevices.getUserMedia(constraints);
 			}
 
@@ -93,8 +121,14 @@
 			stream.getTracks().forEach((track) => track.stop());
 			stream = null;
 		}
-
 		stopScanning();
+	};
+
+	const switchCamera = async (cameraId: string) => {
+		selectedCameraId = cameraId;
+		showCameraSelector = false;
+		stopCamera();
+		await startCamera();
 	};
 
 	const startScanning = () => {
@@ -166,6 +200,14 @@
 		dispatch('cancel');
 	};
 
+	const getCameraLabel = (camera: MediaDeviceInfo): string => {
+		if (camera.label) {
+			return camera.label;
+		}
+		const index = availableCameras.findIndex((c) => c.deviceId === camera.deviceId);
+		return `Camera ${index + 1}`;
+	};
+
 	onMount(() => {
 		startCamera();
 	});
@@ -175,7 +217,7 @@
 	});
 </script>
 
-<div class="space-y-6" in:fly={{ y: 20, duration: 400 }}>
+<div class="space-y-4 sm:space-y-6" in:fly={{ y: 20, duration: 400 }}>
 	<div class="text-center">
 		<div class="mb-4 flex justify-center">
 			<div class="rounded-full bg-primary/10 p-3 ring-1 ring-primary/20">
@@ -187,11 +229,11 @@
 			</div>
 		</div>
 
-		<h1 class="text-3xl font-bold tracking-tight text-foreground">
+		<h1 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
 			{scanSuccess ? 'QR Code Detected!' : 'Scan QR Code'}
 		</h1>
 
-		<p class="mt-2 text-sm text-muted-foreground">
+		<p class="mt-2 px-4 text-sm text-muted-foreground">
 			{scanSuccess
 				? 'Successfully detected your watch QR code'
 				: 'Point your camera at the QR code displayed on your watch'}
@@ -199,91 +241,136 @@
 	</div>
 
 	<div class="space-y-4">
-		<div
-			class="relative aspect-square overflow-hidden rounded-xl border-2 border-border bg-muted shadow-lg"
-		>
-			{#if error}
-				<div class="flex h-full flex-col items-center justify-center p-6 text-center">
-					<div class="mb-4 rounded-full bg-destructive p-3">
-						{#if permissionDenied}
-							<CameraOff class="size-8 text-white" />
-						{:else}
-							<AlertCircle class="size-8 text-white" />
-						{/if}
+		{#if availableCameras.length > 1 && !error}
+			<div class="relative">
+				<Button
+					variant="outline"
+					class="w-full justify-between"
+					onclick={() => (showCameraSelector = !showCameraSelector)}
+				>
+					<div class="flex items-center gap-2">
+						<Camera class="size-4" />
+						<span class="text-sm">
+							{getCameraLabel(
+								availableCameras.find((c) => c.deviceId === selectedCameraId) || availableCameras[0]
+							)}
+						</span>
 					</div>
+					<ChevronDown class="size-4" />
+				</Button>
 
-					<h3 class="mb-2 text-lg font-semibold text-foreground">
-						{permissionDenied ? 'Camera Access Denied' : 'Camera Error'}
-					</h3>
-
-					<p class="mb-4 text-sm text-destructive/80">{error}</p>
-
-					{#if permissionDenied}
-						<div class="rounded-lg p-4 text-left">
-							<p class="mb-2 text-xs text-muted-foreground">To enable camera access:</p>
-							<div class="space-y-1 text-xs text-muted-foreground">
-								<p>1. Click the camera icon in your browser's address bar</p>
-								<p>2. Select "Allow" for camera permissions</p>
-								<p>3. Refresh this page</p>
-							</div>
-						</div>
-					{:else}
-						<Button onclick={startCamera} variant="default" size="sm" class="mt-2">
-							<Camera class="mr-2 size-4" />
-							Try Again
-						</Button>
-					{/if}
-				</div>
-			{:else}
-				<div class="relative h-full">
-					<video
-						muted
-						autoplay
-						playsinline
-						bind:this={videoElement}
-						class="h-full w-full object-cover"
-					></video>
-
-					<div class="absolute inset-0 flex items-center justify-center">
-						<div class="relative">
-							<div class="size-48 rounded-xl border-4 border-primary bg-transparent shadow-2xl">
-								{#if scanSuccess}
-									<div
-										class="absolute inset-0 flex items-center justify-center rounded-xl border-2 border-accent bg-accent/30 backdrop-blur-sm"
-									>
-										<CheckCircle2 class="size-16 text-accent-foreground" />
-									</div>
+				{#if showCameraSelector}
+					<div
+						class="absolute left-0 right-0 top-full z-50 mt-2 rounded-lg border border-border bg-card shadow-lg"
+					>
+						{#each availableCameras as camera}
+							<button
+								onclick={() => switchCamera(camera.deviceId)}
+								class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted"
+							>
+								<Camera class="size-4" />
+								<span class="text-sm">{getCameraLabel(camera)}</span>
+								{#if camera.deviceId === selectedCameraId}
+									<CheckCircle2 class="ml-auto size-4 text-primary" />
 								{/if}
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		<div class="relative">
+			<div
+				class="aspect-square overflow-hidden rounded-xl border-2 border-border bg-muted shadow-lg"
+			>
+				{#if error}
+					<div class="flex h-full flex-col items-center justify-center p-4 text-center sm:p-6">
+						<div class="mb-4 rounded-full bg-destructive p-3">
+							{#if permissionDenied}
+								<CameraOff class="size-6 text-white sm:size-8" />
+							{:else}
+								<AlertCircle class="size-6 text-white sm:size-8" />
+							{/if}
+						</div>
+
+						<h3 class="mb-2 text-base font-semibold text-foreground sm:text-lg">
+							{permissionDenied ? 'Camera Access Denied' : 'Camera Error'}
+						</h3>
+
+						<p class="mb-4 px-2 text-sm text-destructive/80">{error}</p>
+
+						{#if permissionDenied}
+							<div class="max-w-sm rounded-lg p-3 text-left sm:p-4">
+								<p class="mb-2 text-xs text-muted-foreground">To enable camera access:</p>
+								<div class="space-y-1 text-xs text-muted-foreground">
+									<p>1. Click the camera icon in your browser's address bar</p>
+									<p>2. Select "Allow" for camera permissions</p>
+									<p>3. Refresh this page</p>
+								</div>
+							</div>
+						{:else}
+							<Button onclick={startCamera} variant="default" size="sm" class="mt-2">
+								<Camera class="mr-2 size-4" />
+								Try Again
+							</Button>
+						{/if}
+					</div>
+				{:else}
+					<div class="relative h-full">
+						<video
+							muted
+							autoplay
+							playsinline
+							bind:this={videoElement}
+							class="h-full w-full object-cover"
+						></video>
+
+						<div class="absolute inset-0 flex items-center justify-center p-4">
+							<div class="relative">
+								<div
+									class="size-40 rounded-xl border-4 border-primary bg-transparent shadow-2xl sm:size-48 md:size-56 lg:size-64"
+								>
+									{#if scanSuccess}
+										<div
+											class="absolute inset-0 flex items-center justify-center rounded-xl border-2 border-accent bg-accent/30 backdrop-blur-sm"
+										>
+											<CheckCircle2 class="size-12 text-accent-foreground sm:size-16" />
+										</div>
+									{/if}
+								</div>
 							</div>
 						</div>
 					</div>
+				{/if}
+			</div>
 
-					<div class="absolute left-4 right-4 top-4">
-						{#if scanSuccess}
+			{#if !error}
+				<div class="absolute bottom-4 left-2 right-2 sm:bottom-auto sm:left-4 sm:right-4 sm:top-4">
+					{#if scanSuccess}
+						<div
+							class="flex items-center justify-center gap-2 rounded-full border border-accent-foreground/20 bg-accent px-3 py-2 text-xs text-accent-foreground shadow-lg sm:px-4 sm:text-sm"
+						>
+							<CheckCircle2 class="size-3 sm:size-4" />
+							<span class="truncate">QR Code: {detectedQRCode.slice(0, 12)}...</span>
+						</div>
+					{:else if linkingWatch}
+						<div
+							class="flex items-center justify-center gap-2 rounded-full border border-secondary-foreground/20 bg-secondary px-3 py-2 text-xs text-secondary-foreground shadow-lg sm:px-4 sm:text-sm"
+						>
 							<div
-								class="flex items-center justify-center gap-2 rounded-full border border-accent-foreground/20 bg-accent px-4 py-2 text-sm text-accent-foreground shadow-lg"
-							>
-								<CheckCircle2 class="size-4" />
-								QR Code Detected: {detectedQRCode.slice(0, 8)}...
-							</div>
-						{:else if linkingWatch}
-							<div
-								class="flex items-center justify-center gap-2 rounded-full border border-secondary-foreground/20 bg-secondary px-4 py-2 text-sm text-secondary-foreground shadow-lg"
-							>
-								<div
-									class="size-4 animate-spin rounded-full border-2 border-secondary-foreground/30 border-t-secondary-foreground"
-								></div>
-								Linking watch...
-							</div>
-						{:else if scanningActive}
-							<div
-								class="flex items-center justify-center gap-2 rounded-full border border-primary-foreground/20 bg-primary px-4 py-2 text-sm text-primary-foreground shadow-lg"
-							>
-								<div class="size-2 animate-pulse rounded-full bg-primary-foreground"></div>
-								Scanning for QR code...
-							</div>
-						{/if}
-					</div>
+								class="size-3 animate-spin rounded-full border-2 border-secondary-foreground/30 border-t-secondary-foreground sm:size-4"
+							></div>
+							Linking watch...
+						</div>
+					{:else if scanningActive}
+						<div
+							class="flex items-center justify-center gap-2 rounded-full border border-primary-foreground/20 bg-primary px-3 py-2 text-xs text-primary-foreground shadow-lg sm:px-4 sm:text-sm"
+						>
+							<div class="size-2 animate-pulse rounded-full bg-primary-foreground"></div>
+							Scanning...
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -291,40 +378,40 @@
 		<canvas bind:this={canvasElement} class="hidden"></canvas>
 	</div>
 
-	<div class="flex gap-3">
+	<div class="flex gap-3 px-4 sm:px-0">
 		<Button onclick={handleCancel} variant="outline" class="flex-1" disabled={linkingWatch}>
 			<X class="mr-2 size-4" />
 			Cancel
 		</Button>
 	</div>
 
-	<div class="rounded-xl border border-border bg-card shadow-sm">
-		<div class="border-b border-border bg-muted/50 px-6 py-4">
+	<div class="mx-4 rounded-xl border border-border bg-card shadow-sm sm:mx-0">
+		<div class="border-b border-border bg-muted/50 px-4 py-3 sm:px-6 sm:py-4">
 			<h3 class="flex items-center gap-2 text-sm font-semibold text-foreground">
 				<QrCode class="size-4" />
 				Setup Instructions
 			</h3>
 		</div>
-		<div class="p-6">
-			<div class="space-y-4">
+		<div class="p-4 sm:p-6">
+			<div class="space-y-3 sm:space-y-4">
 				<div class="flex items-start gap-3">
 					<div
-						class="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
+						class="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
 					>
 						1
 					</div>
-					<div>
+					<div class="min-w-0">
 						<p class="text-sm font-medium text-foreground">Open VitalSync App</p>
 						<p class="text-xs text-muted-foreground">Launch the VitalSync app on your smartwatch</p>
 					</div>
 				</div>
 				<div class="flex items-start gap-3">
 					<div
-						class="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
+						class="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
 					>
 						2
 					</div>
-					<div>
+					<div class="min-w-0">
 						<p class="text-sm font-medium text-foreground">Navigate to QR Code</p>
 						<p class="text-xs text-muted-foreground">
 							The QR code will appear on your watch screen automatically
@@ -333,11 +420,11 @@
 				</div>
 				<div class="flex items-start gap-3">
 					<div
-						class="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
+						class="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary"
 					>
 						3
 					</div>
-					<div>
+					<div class="min-w-0">
 						<p class="text-sm font-medium text-foreground">Scan with Camera</p>
 						<p class="text-xs text-muted-foreground">
 							Point your phone's camera at the QR code to establish connection
