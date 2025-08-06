@@ -2,24 +2,17 @@
 	import { signOut } from '$lib/hooks/auth';
 	import { useAuth } from '$lib/hooks/use-auth';
 	import { toTitleCase } from '$lib/utils/text';
-	import { toggleMode, mode } from 'mode-watcher';
-	import { Switch } from '$lib/components/ui/switch';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import { useSidebar } from '$lib/components/ui/sidebar';
+	import { ChevronsUpDown, LogOut, Loader2 } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { ChevronsUpDown, LogOut, Loader2, Moon } from 'lucide-svelte';
 
 	const auth = useAuth();
 	const sidebar = useSidebar();
 	let isSigningOut = $state(false);
 	const { user, isLoading } = $derived($auth);
-	let isDarkMode = $state(mode.current === 'dark');
 	const displayName = $derived(user?.name ? toTitleCase(user.name) : 'User');
-
-	$effect(() => {
-		isDarkMode = mode.current === 'dark';
-	});
 
 	async function handleSignOut() {
 		if (isSigningOut) return;
@@ -102,19 +95,6 @@
 							</div>
 						</div>
 					</DropdownMenu.Label>
-
-					<DropdownMenu.Separator />
-
-					<DropdownMenu.Item
-						onclick={(e) => e.preventDefault()}
-						class="flex cursor-pointer items-center"
-					>
-						<div class="flex flex-1 items-center gap-2">
-							<Moon class="mr-2 h-4 w-4" />
-							<span>Dark mode</span>
-						</div>
-						<Switch checked={isDarkMode} onclick={toggleMode} />
-					</DropdownMenu.Item>
 
 					<DropdownMenu.Separator />
 
