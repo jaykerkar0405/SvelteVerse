@@ -4,16 +4,16 @@
 	"version": "1.0.0",
 	"name": "svelteverse",
 	"scripts": {
-		"dev": "vite dev",
 		"test:unit": "vitest",
 		"build": "vite build",
 		"preview": "vite preview",
 		"test:e2e": "playwright test",
 		"format": "prettier --write .",
 		"db-push": "npx prisma db push",
-		"postinstall": "npx prisma generate",
 		"prepare": "svelte-kit sync || echo ''",
+		"dev": "npx prisma generate && vite dev",
 		"lint": "prettier --check . && eslint .",
+		"postinstall": "npx prisma generate --no-engine",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
